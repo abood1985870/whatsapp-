@@ -1,9 +1,9 @@
 [phases.setup]
-nixPkgs = ["...", "redis"]
-aptPkgs = ["...", "redis-server"]
+nixPkgs = ["...", "redis", "postgresql"]
+aptPkgs = ["...", "redis-server", "postgresql"]
 
 [phases.build]
 cmds = ["pnpm install", "pnpm run build"]
 
 [start]
-cmd = "node gateway.js"
+cmd = "bash start.sh"
