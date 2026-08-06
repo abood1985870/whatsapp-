@@ -1,0 +1,1746 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// Identity & Authentication
+// ============================================
+
+model User {
+  id                String    @id @default(cuid())
+  name              String?
+  email             String    @unique
+  emailVerifiedAt   DateTime?
+  phone             String?
+  avatarUrl         String?
+  preferredLocale   String    @default("ar")
+  status            String    @default("ACTIVE")
+  passwordHash      String
+  twoFactorEnabled  Boolean   @default(false)
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  sessions          Session[]
+  accounts          Account[]
+  verifications     Verification[]
+  twoFactorCredentials TwoFactorCredential[]
+  memberships       Membership[]
+  invitationsSent   Invitation[] @relation("InvitedBy")
+  auditLogs         AuditLog[]
+  aiAgents          AiAgent[]
+  apiKeys           ApiKey[]
+  notifications     Notification[]
+
+  @@index([email])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Session {
+  id             String   @id @default(cuid())
+  userId         String
+  token          String   @unique
+  expiresAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model Account {
+  id                String @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  accessToken       String?
+  refreshToken      String?
+  expiresAt         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user              User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  userId     String?
+  email      String?
+  token      String   @unique
+  type       String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([email])
+  @@map("verifications")
+}
+
+model TwoFactorCredential {
+  id        String   @id @default(cuid())
+  userId    String
+  secret    String
+  backupCodes String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("two_factor_credentials")
+}
+
+// ============================================
+// Organizations & Memberships
+// ============================================
+
+model Organization {
+  id              String   @id @default(cuid())
+  slug            String   @unique
+  legalName       String
+  displayName     String?
+  logoUrl         String?
+  industry        String?
+  country         String   @default("SA")
+  timezone        String   @default("Asia/Riyadh")
+  locale          String   @default("ar")
+  currency        String   @default("SAR")
+  status          String   @default("TRIAL")
+  trialEndsAt     DateTime?
+  settings        Json     @default("{}")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?
+
+  memberships     Membership[]
+  invitations     Invitation[]
+  branches        Branch[]
+  teams           Team[]
+  channelConnections ChannelConnection[]
+  contacts        Contact[]
+  conversations   Conversation[]
+  messages        Message[]
+  aiAgents        AiAgent[]
+  knowledgeBases  KnowledgeBase[]
+  subscriptions   Subscription[]
+  apiKeys         ApiKey[]
+  webhookEndpoints OutboundWebhookEndpoint[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  usageEvents     UsageEvent[]
+  dataExports     DataExportRequest[]
+  dataDeletions   DataDeletionRequest[]
+  securityEvents  SecurityEvent[]
+  supportAccessGrants SupportAccessGrant[]
+  routingRules    RoutingRule[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("organizations")
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  roleId         String
+  status         String   @default("INVITED")
+  joinedAt       DateTime?
+  invitedById    String?
+  branchId       String?
+  teamId         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           Role           @relation(fields: [roleId], references: [id])
+  team           Team?          @relation(fields: [teamId], references: [id])
+  assignments    AssignmentHistory[]
+  assignedConversations Conversation[]
+  mentions       ConversationMention[]
+  notes          InternalNote[]
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([status])
+  @@map("memberships")
+}
+
+model Invitation {
+  id             String   @id @default(cuid())
+  email          String
+  organizationId String
+  roleId         String
+  invitedById    String
+  status         String   @default("PENDING")
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy      User         @relation("InvitedBy", fields: [invitedById], references: [id])
+  role           Role         @relation(fields: [roleId], references: [id])
+
+  @@unique([email, organizationId])
+  @@index([organizationId])
+  @@map("invitations")
+}
+
+// ============================================
+// Roles & Permissions
+// ============================================
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  organizationId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  memberships Membership[]
+  permissions RolePermission[]
+  invitations Invitation[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  category    String
+  createdAt   DateTime @default(now())
+
+  roles       RolePermission[]
+
+  @@index([code])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+// ============================================
+// Branches, Teams & Routing
+// ============================================
+
+model Branch {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  address        String?
+  phone          String?
+  email          String?
+  location       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  teams          Team[]
+
+  @@index([organizationId])
+  @@map("branches")
+}
+
+model Team {
+  id             String   @id @default(cuid())
+  organizationId String
+  branchId       String?
+  name           String
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  branch         Branch?      @relation(fields: [branchId], references: [id])
+  memberships    Membership[]
+  routingRules   RoutingRule[]
+  conversations  Conversation[]
+
+  @@index([organizationId])
+  @@map("teams")
+}
+
+model TeamMember {
+  id         String   @id @default(cuid())
+  teamId     String
+  membershipId String
+  createdAt  DateTime @default(now())
+
+  @@unique([teamId, membershipId])
+  @@map("team_members")
+}
+
+model RoutingRule {
+  id             String   @id @default(cuid())
+  organizationId String
+  teamId         String?
+  name           String
+  condition      Json
+  priority       Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team           Team?        @relation(fields: [teamId], references: [id])
+
+  @@index([organizationId])
+  @@index([isActive])
+  @@map("routing_rules")
+}
+
+model WorkingHours {
+  id             String   @id @default(cuid())
+  organizationId String
+  teamId         String?
+  dayOfWeek      Int
+  startTime      String
+  endTime        String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@map("working_hours")
+}
+
+model Holiday {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  date           DateTime
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@map("holidays")
+}
+
+model SlaPolicy {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  name                String
+  firstResponseMinutes Int
+  nextResponseMinutes Int?
+  resolutionMinutes   Int?
+  warningThreshold    Float    @default(0.8)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([organizationId])
+  @@map("sla_policies")
+}
+
+// ============================================
+// WhatsApp Connections
+// ============================================
+
+model ChannelConnection {
+  id                String   @id @default(cuid())
+  organizationId    String
+  name              String
+  branchId          String?
+  teamId            String?
+  status            String   @default("NOT_CREATED")
+  phoneNumber       String?
+  provider          String   @default("EVOLUTION")
+  providerInstanceId String?
+  providerMetadata  Json?
+  webhookUrl        String?
+  lastConnectedAt   DateTime?
+  lastDisconnectedAt DateTime?
+  failureCount      Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversations     Conversation[]
+  messages          Message[]
+  webhookEvents     WebhookEvent[]
+  providerHealthEvents ProviderHealthEvent[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([providerInstanceId])
+  @@map("channel_connections")
+}
+
+model WhatsAppInstance {
+  id                String   @id @default(cuid())
+  connectionId      String   @unique
+  providerInstanceId String
+  sessionData       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("whatsapp_instances")
+}
+
+model ProviderCredential {
+  id           String   @id @default(cuid())
+  provider     String
+  keyId        String   @unique
+  encryptedData String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("provider_credentials")
+}
+
+model ProviderHealthEvent {
+  id                String   @id @default(cuid())
+  connectionId      String
+  metric            String
+  value             Json
+  status            String
+  createdAt         DateTime @default(now())
+
+  connection        ChannelConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+  @@index([createdAt])
+  @@map("provider_health_events")
+}
+
+// ============================================
+// Webhook Events
+// ============================================
+
+model WebhookEvent {
+  id                String   @id @default(cuid())
+  organizationId    String
+  channelConnectionId String
+  provider          String
+  providerEventId   String?
+  eventType         String
+  idempotencyKey    String
+  sanitizedPayload  Json
+  payloadHash       String
+  processingStatus  String   @default("RECEIVED")
+  receivedAt        DateTime @default(now())
+  processedAt       DateTime?
+  failedAt          DateTime?
+  retryCount        Int      @default(0)
+  errorCode         String?
+  errorMessage      String?
+  createdAt         DateTime @default(now())
+
+  connection        ChannelConnection @relation(fields: [channelConnectionId], references: [id], onDelete: Cascade)
+
+  @@unique([idempotencyKey])
+  @@index([organizationId])
+  @@index([channelConnectionId])
+  @@index([processingStatus])
+  @@index([receivedAt])
+  @@map("webhook_events")
+}
+
+// ============================================
+// Contacts
+// ============================================
+
+model Contact {
+  id                String   @id @default(cuid())
+  organizationId    String
+  primaryPhone      String
+  normalizedPhone   String
+  whatsappJid       String?
+  name              String?
+  email             String?
+  language          String?
+  avatarUrl         String?
+  company           String?
+  country           String?
+  city              String?
+  notes             String?
+  status            String   @default("ACTIVE")
+  source            String   @default("WHATSAPP")
+  consentStatus     String   @default("PENDING")
+  marketingOptInAt  DateTime?
+  marketingOptOutAt DateTime?
+  firstSeenAt       DateTime @default(now())
+  lastSeenAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversations     Conversation[]
+  messages          Message[]
+  customFields      ContactCustomFieldValue[]
+  tags              ContactTag[]
+
+  @@unique([organizationId, normalizedPhone])
+  @@index([organizationId])
+  @@index([normalizedPhone])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("contacts")
+}
+
+model Tag {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  color          String?
+  createdAt      DateTime @default(now())
+
+  contacts       ContactTag[]
+  conversations  ConversationTag[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("tags")
+}
+
+model ContactTag {
+  id        String @id @default(cuid())
+  contactId String
+  tagId     String
+
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, tagId])
+  @@map("contact_tags")
+}
+
+model ContactCustomFieldDefinition {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  fieldType      String   @default("TEXT")
+  options        Json?
+  isRequired     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  values         ContactCustomFieldValue[]
+
+  @@index([organizationId])
+  @@map("contact_custom_field_definitions")
+}
+
+model ContactCustomFieldValue {
+  id          String @id @default(cuid())
+  contactId   String
+  definitionId String
+  value       String
+
+  contact     Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  definition  ContactCustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, definitionId])
+  @@map("contact_custom_field_values")
+}
+
+// ============================================
+// Conversations
+// ============================================
+
+model Conversation {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  channelConnectionId String
+  contactId           String
+  teamId              String?
+  assignedMembershipId String?
+  status              String   @default("NEW")
+  mode                String   @default("AI_AUTOMATIC")
+  priority            String   @default("MEDIUM")
+  subject             String?
+  lastMessageAt       DateTime?
+  firstResponseAt     DateTime?
+  resolvedAt          DateTime?
+  closedAt            DateTime?
+  snoozedUntil        DateTime?
+  aiConfidence        Float?
+  handoffReason       String?
+  summary             String?
+  sentiment           String?
+  slaDueAt            DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  deletedAt           DateTime?
+  version             Int      @default(0)
+
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  connection          ChannelConnection @relation(fields: [channelConnectionId], references: [id], onDelete: Cascade)
+  contact             Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  team                Team?   @relation(fields: [teamId], references: [id])
+  assignedMembership  Membership? @relation(fields: [assignedMembershipId], references: [id])
+  messages            Message[]
+  internalNotes       InternalNote[]
+  mentions            ConversationMention[]
+  watchers            ConversationWatcher[]
+  assignmentHistory   AssignmentHistory[]
+  conversationEvents  ConversationEvent[]
+  csatSurveys         CsatSurvey[]
+  tags                ConversationTag[]
+
+  @@index([organizationId])
+  @@index([channelConnectionId])
+  @@index([contactId])
+  @@index([status])
+  @@index([mode])
+  @@index([assignedMembershipId])
+  @@index([lastMessageAt])
+  @@index([deletedAt])
+  @@map("conversations")
+}
+
+model ConversationTag {
+  id             String @id @default(cuid())
+  conversationId String
+  tagId          String
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  tag            Tag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, tagId])
+  @@map("conversation_tags")
+}
+
+model AssignmentHistory {
+  id             String   @id @default(cuid())
+  conversationId String
+  membershipId   String
+  assignedAt     DateTime @default(now())
+  unassignedAt   DateTime?
+  reason         String?
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  membership     Membership   @relation(fields: [membershipId], references: [id])
+
+  @@index([conversationId])
+  @@index([membershipId])
+  @@map("assignment_history")
+}
+
+model ConversationEvent {
+  id             String   @id @default(cuid())
+  conversationId String
+  eventType      String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("conversation_events")
+}
+
+model InternalNote {
+  id             String   @id @default(cuid())
+  conversationId String
+  membershipId   String
+  content        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  membership     Membership   @relation(fields: [membershipId], references: [id])
+  mentions       ConversationMention[]
+
+  @@index([conversationId])
+  @@index([createdAt])
+  @@map("internal_notes")
+}
+
+model ConversationMention {
+  id             String   @id @default(cuid())
+  conversationId String
+  membershipId   String
+  noteId         String?
+  createdAt      DateTime @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  membership     Membership   @relation(fields: [membershipId], references: [id])
+  note           InternalNote? @relation(fields: [noteId], references: [id])
+
+  @@index([conversationId])
+  @@index([membershipId])
+  @@map("conversation_mentions")
+}
+
+model ConversationWatcher {
+  id             String   @id @default(cuid())
+  conversationId String
+  membershipId   String
+  createdAt      DateTime @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, membershipId])
+  @@map("conversation_watchers")
+}
+
+// ============================================
+// Messages
+// ============================================
+
+model Message {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  conversationId      String
+  channelConnectionId String
+  contactId           String?
+  providerMessageId   String?
+  clientIdempotencyKey String?
+  direction           String
+  senderType          String
+  senderMembershipId  String?
+  messageType         String   @default("TEXT")
+  text                String?
+  caption             String?
+  quotedMessageId     String?
+  mediaAssetId        String?
+  providerStatus      String   @default("PENDING")
+  providerErrorCode   String?
+  providerErrorMessage String?
+  sentAt              DateTime?
+  deliveredAt         DateTime?
+  readAt              DateTime?
+  failedAt            DateTime?
+  receivedAt          DateTime?
+  editedAt            DateTime?
+  deletedAt           DateTime?
+  isInternal          Boolean  @default(false)
+  isAiGenerated       Boolean  @default(false)
+  aiRunId             String?
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversation        Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  connection          ChannelConnection @relation(fields: [channelConnectionId], references: [id], onDelete: Cascade)
+  contact             Contact? @relation(fields: [contactId], references: [id])
+  mediaAsset          MediaAsset? @relation(fields: [mediaAssetId], references: [id])
+  statusEvents        MessageStatusEvent[]
+
+  @@unique([organizationId, providerMessageId])
+  @@unique([clientIdempotencyKey])
+  @@index([organizationId])
+  @@index([conversationId])
+  @@index([channelConnectionId])
+  @@index([contactId])
+  @@index([createdAt])
+  @@index([direction])
+  @@index([senderType])
+  @@map("messages")
+}
+
+model MessageStatusEvent {
+  id        String   @id @default(cuid())
+  messageId String
+  status    String
+  timestamp DateTime @default(now())
+  metadata  Json?
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([timestamp])
+  @@map("message_status_events")
+}
+
+model MediaAsset {
+  id             String   @id @default(cuid())
+  organizationId String
+  storageKey     String   @unique
+  originalName   String?
+  mimeType       String
+  sizeBytes      Int
+  checksum       String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  messages       Message[]
+
+  @@index([organizationId])
+  @@map("media_assets")
+}
+
+// ============================================
+// AI Agents
+// ============================================
+
+model AiAgent {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  name                String
+  description         String?
+  status              String   @default("DRAFT")
+  defaultLanguage     String   @default("ar")
+  supportedLanguages  String[] @default(["ar", "en"])
+  tone                String   @default("PROFESSIONAL")
+  systemInstructions  String?
+  greetingMessage     String?
+  fallbackMessage     String?
+  handoffMessage      String?
+  afterHoursMessage   String?
+  confidenceThreshold Float    @default(0.7)
+  autoReplyEnabled    Boolean  @default(true)
+  suggestionsEnabled  Boolean  @default(false)
+  workingHoursOnly    Boolean  @default(false)
+  activeVersionId     String?
+  createdById         String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  deletedAt           DateTime?
+
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creator             User         @relation(fields: [createdById], references: [id])
+  versions            AiAgentVersion[]
+  aiRuns              AiRun[]
+  feedbacks           AiFeedback[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("ai_agents")
+}
+
+model AiAgentVersion {
+  id          String   @id @default(cuid())
+  agentId     String
+  version     Int
+  name        String
+  instructions String?
+  configuration Json?
+  status      String   @default("DRAFT")
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  agent       AiAgent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, version])
+  @@index([agentId])
+  @@map("ai_agent_versions")
+}
+
+model PromptVersion {
+  id          String   @id @default(cuid())
+  agentId     String
+  version     Int
+  prompt      String
+  variables   Json?
+  createdAt   DateTime @default(now())
+
+  @@unique([agentId, version])
+  @@map("prompt_versions")
+}
+
+model AgentPolicy {
+  id          String   @id @default(cuid())
+  agentId     String
+  policyType  String
+  content     String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([agentId])
+  @@map("agent_policies")
+}
+
+model AgentTool {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String
+  inputSchema    Json
+  outputSchema   Json?
+  riskLevel      String   @default("LOW")
+  requiredPermissions String[]
+  configuration  Json?
+  isEnabled      Boolean  @default(false)
+  confirmationRequired Boolean @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  versions       AgentToolVersion[]
+  executions     ToolExecution[]
+
+  @@index([organizationId])
+  @@map("agent_tools")
+}
+
+model AgentToolVersion {
+  id          String   @id @default(cuid())
+  toolId      String
+  version     Int
+  configuration Json?
+  createdAt   DateTime @default(now())
+
+  tool        AgentTool @relation(fields: [toolId], references: [id], onDelete: Cascade)
+
+  @@unique([toolId, version])
+  @@map("agent_tool_versions")
+}
+
+model ToolExecution {
+  id             String   @id @default(cuid())
+  toolId         String
+  organizationId String
+  conversationId String
+  input          Json
+  output         Json?
+  status         String   @default("PENDING")
+  approvedById   String?
+  approvedAt     DateTime?
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+  completedAt    DateTime?
+
+  tool           AgentTool @relation(fields: [toolId], references: [id])
+
+  @@index([organizationId])
+  @@index([conversationId])
+  @@index([status])
+  @@map("tool_executions")
+}
+
+model ToolApproval {
+  id             String   @id @default(cuid())
+  executionId    String
+  membershipId   String
+  decision       String
+  reason         String?
+  createdAt      DateTime @default(now())
+
+  @@index([executionId])
+  @@map("tool_approvals")
+}
+
+// ============================================
+// Knowledge Base & RAG
+// ============================================
+
+model KnowledgeBase {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  isDefault      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sources        KnowledgeSource[]
+  snapshots      KnowledgeSnapshot[]
+
+  @@index([organizationId])
+  @@map("knowledge_bases")
+}
+
+model KnowledgeSource {
+  id             String   @id @default(cuid())
+  knowledgeBaseId String
+  name           String
+  sourceType     String
+  sourceUrl      String?
+  filePath       String?
+  fileSize       Int?
+  mimeType       String?
+  checksum       String?
+  status         String   @default("UPLOADED")
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  knowledgeBase  KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  documents      Document[]
+  ingestionJobs  IngestionJob[]
+
+  @@index([knowledgeBaseId])
+  @@index([status])
+  @@map("knowledge_sources")
+}
+
+model Document {
+  id             String   @id @default(cuid())
+  sourceId       String
+  name           String
+  content        String?
+  language       String?
+  pageCount      Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  source         KnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  versions       DocumentVersion[]
+
+  @@index([sourceId])
+  @@map("documents")
+}
+
+model DocumentVersion {
+  id          String   @id @default(cuid())
+  documentId  String
+  version     Int
+  content     String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunks      DocumentChunk[]
+
+  @@unique([documentId, version])
+  @@map("document_versions")
+}
+
+model DocumentChunk {
+  id                String   @id @default(cuid())
+  documentVersionId String
+  organizationId    String
+  knowledgeBaseId   String
+  sourceId          String
+  pageNumber        Int?
+  sectionTitle      String?
+  language          String?
+  content           String
+  contentHash       String
+  tokenCount        Int?
+  embedding         Unsupported("vector(1536)")?
+  metadata          Json?
+  createdAt         DateTime @default(now())
+
+  version           DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([knowledgeBaseId])
+  @@index([sourceId])
+  @@index([contentHash])
+  @@map("document_chunks")
+}
+
+model IngestionJob {
+  id             String   @id @default(cuid())
+  sourceId       String
+  status         String   @default("QUEUED")
+  stage          String   @default("PENDING")
+  progress       Int      @default(0)
+  errorMessage   String?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  source         KnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@index([status])
+  @@map("ingestion_jobs")
+}
+
+model FaqEntry {
+  id             String   @id @default(cuid())
+  organizationId String
+  question       String
+  answer         String
+  category       String?
+  language       String   @default("ar")
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([category])
+  @@map("faq_entries")
+}
+
+model KnowledgeCategory {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@map("knowledge_categories")
+}
+
+model KnowledgeTag {
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+
+  @@unique([organizationId, name])
+  @@map("knowledge_tags")
+}
+
+model KnowledgeSnapshot {
+  id             String   @id @default(cuid())
+  knowledgeBaseId String
+  version        Int
+  snapshotData   Json
+  createdAt      DateTime @default(now())
+
+  knowledgeBase  KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+
+  @@unique([knowledgeBaseId, version])
+  @@map("knowledge_snapshots")
+}
+
+model RetrievalLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  query          String
+  results        Json?
+  latencyMs      Int?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([createdAt])
+  @@map("retrieval_logs")
+}
+
+// ============================================
+// AI Runs & Feedback
+// ============================================
+
+model AiRun {
+  id             String   @id @default(cuid())
+  organizationId String
+  agentId        String
+  conversationId String
+  input          String?
+  output         String?
+  decision       Json?
+  confidence     Float?
+  citations      Json?
+  tokenUsage     Json?
+  costUsd        Float?
+  latencyMs      Int?
+  status         String   @default("PENDING")
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+  completedAt    DateTime?
+
+  agent          AiAgent  @relation(fields: [agentId], references: [id])
+
+  @@index([organizationId])
+  @@index([conversationId])
+  @@index([agentId])
+  @@map("ai_runs")
+}
+
+model AiFeedback {
+  id             String   @id @default(cuid())
+  organizationId String
+  agentId        String
+  runId          String?
+  conversationId String
+  rating         Int?
+  comment        String?
+  isCorrect      Boolean?
+  correctedAnswer String?
+  createdById    String
+  createdAt      DateTime @default(now())
+
+  agent          AiAgent  @relation(fields: [agentId], references: [id])
+
+  @@index([organizationId])
+  @@index([agentId])
+  @@map("ai_feedback")
+}
+
+model EvaluationCase {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  input          String
+  expectedOutput String?
+  expectedAction String?
+  tags           String[]
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@map("evaluation_cases")
+}
+
+model EvaluationRun {
+  id             String   @id @default(cuid())
+  organizationId String
+  agentVersionId String
+  status         String   @default("RUNNING")
+  results        Json?
+  metrics        Json?
+  startedAt      DateTime @default(now())
+  completedAt    DateTime?
+
+  @@index([organizationId])
+  @@map("evaluation_runs")
+}
+
+// ============================================
+// Notifications
+// ============================================
+
+model Notification {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  type           String
+  title          String
+  content        String?
+  metadata       Json?
+  isRead         Boolean  @default(false)
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  type           String
+  inApp          Boolean  @default(true)
+  email          Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, organizationId, type])
+  @@map("notification_preferences")
+}
+
+// ============================================
+// Subscriptions & Billing
+// ============================================
+
+model Plan {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  prices      PlanPrice[]
+  features    PlanFeature[]
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model PlanPrice {
+  id          String   @id @default(cuid())
+  planId      String
+  currency    String   @default("SAR")
+  amount      Int
+  interval    String   @default("MONTH")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  plan        Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@map("plan_prices")
+}
+
+model PlanFeature {
+  id          String   @id @default(cuid())
+  planId      String
+  featureKey  String
+  limit       Int?
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  plan        Plan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, featureKey])
+  @@map("plan_features")
+}
+
+model Subscription {
+  id                String   @id @default(cuid())
+  organizationId    String   @unique
+  planId            String
+  status            String   @default("TRIAL")
+  currentPeriodStart DateTime
+  currentPeriodEnd  DateTime
+  cancelAtPeriodEnd Boolean  @default(false)
+  canceledAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan              Plan         @relation(fields: [planId], references: [id])
+  items             SubscriptionItem[]
+  invoices          Invoice[]
+  payments          Payment[]
+  credits           Credit[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+model SubscriptionItem {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  priceId        String
+  quantity       Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@map("subscription_items")
+}
+
+model Entitlement {
+  id             String   @id @default(cuid())
+  organizationId String
+  featureKey     String
+  limit          Int?
+  usage          Int      @default(0)
+  isEnabled      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, featureKey])
+  @@map("entitlements")
+}
+
+model UsageEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  featureKey     String
+  quantity       Int      @default(1)
+  idempotencyKey String   @unique
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([featureKey])
+  @@index([createdAt])
+  @@map("usage_events")
+}
+
+model UsageAggregate {
+  id             String   @id @default(cuid())
+  organizationId String
+  featureKey     String
+  period         String
+  periodStart    DateTime
+  periodEnd      DateTime
+  totalUsage     Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, featureKey, period])
+  @@map("usage_aggregates")
+}
+
+model Invoice {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  organizationId String
+  status         String   @default("DRAFT")
+  amount         Int
+  currency       String   @default("SAR")
+  dueDate        DateTime?
+  paidAt         DateTime?
+  pdfUrl         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  lines          InvoiceLine[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id          String @id @default(cuid())
+  invoiceId   String
+  description String
+  amount      Int
+  quantity    Int    @default(1)
+
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_lines")
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  organizationId String
+  amount         Int
+  currency       String   @default("SAR")
+  status         String   @default("PENDING")
+  provider       String?
+  providerPaymentId String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("payments")
+}
+
+model Credit {
+  id             String   @id @default(cuid())
+  subscriptionId String
+  organizationId String
+  amount         Int
+  currency       String   @default("SAR")
+  reason         String?
+  expiresAt      DateTime?
+  createdAt      DateTime @default(now())
+
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@map("credits")
+}
+
+model Coupon {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  description String?
+  discountType String  @default("PERCENTAGE")
+  discountValue Int
+  maxUses     Int?
+  usedCount   Int      @default(0)
+  expiresAt   DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@map("coupons")
+}
+
+// ============================================
+// Integrations
+// ============================================
+
+model Integration {
+  id             String   @id @default(cuid())
+  organizationId String
+  type           String
+  name           String
+  configuration  Json?
+  isActive       Boolean  @default(true)
+  lastSyncAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@map("integrations")
+}
+
+model ApiKey {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  name           String
+  keyPrefix      String
+  keyHash        String
+  scopes         String[]
+  expiresAt      DateTime?
+  lastUsedAt     DateTime?
+  isRevoked      Boolean  @default(false)
+  revokedAt      DateTime?
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([keyPrefix])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("api_keys")
+}
+
+model OutboundWebhookEndpoint {
+  id             String   @id @default(cuid())
+  organizationId String
+  url            String
+  secret         String
+  events         String[]
+  isActive       Boolean  @default(true)
+  failureCount   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries     OutboundWebhookDelivery[]
+
+  @@index([organizationId])
+  @@map("outbound_webhook_endpoints")
+}
+
+model OutboundWebhookDelivery {
+  id          String   @id @default(cuid())
+  endpointId  String
+  eventType   String
+  payload     Json
+  status      String   @default("PENDING")
+  responseStatus Int?
+  responseBody String?
+  attemptCount Int    @default(0)
+  nextAttemptAt DateTime?
+  createdAt   DateTime @default(now())
+  deliveredAt DateTime?
+
+  endpoint    OutboundWebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId])
+  @@index([status])
+  @@map("outbound_webhook_deliveries")
+}
+
+// ============================================
+// Audit & Compliance
+// ============================================
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  actorUserId    String?
+  actorMembershipId String?
+  actorType      String   @default("USER")
+  action         String
+  resourceType   String
+  resourceId     String?
+  beforeData     Json?
+  afterData      Json?
+  metadata       Json?
+  ipHash         String?
+  userAgent      String?
+  correlationId  String
+  createdAt      DateTime @default(now())
+
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  actorUser      User?         @relation(fields: [actorUserId], references: [id])
+
+  @@index([organizationId])
+  @@index([actorUserId])
+  @@index([action])
+  @@index([resourceType])
+  @@index([createdAt])
+  @@index([correlationId])
+  @@map("audit_logs")
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String?
+  isEnabled   Boolean  @default(false)
+  scope       String   @default("PLATFORM")
+  organizationId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("feature_flags")
+}
+
+model ScheduledReport {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  reportType     String
+  frequency      String
+  configuration  Json?
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@map("scheduled_reports")
+}
+
+model ReportRun {
+  id             String   @id @default(cuid())
+  reportId       String
+  status         String   @default("RUNNING")
+  resultUrl      String?
+  errorMessage   String?
+  startedAt      DateTime @default(now())
+  completedAt    DateTime?
+
+  @@map("report_runs")
+}
+
+// ============================================
+// CSAT
+// ============================================
+
+model CsatSurvey {
+  id             String   @id @default(cuid())
+  conversationId String
+  organizationId String
+  message        String?
+  delayMinutes   Int      @default(60)
+  expiresAt      DateTime?
+  sentAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  responses      CsatResponse[]
+
+  @@index([conversationId])
+  @@map("csat_surveys")
+}
+
+model CsatResponse {
+  id          String   @id @default(cuid())
+  surveyId    String
+  score       Int
+  comment     String?
+  createdAt   DateTime @default(now())
+
+  survey      CsatSurvey @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+
+  @@map("csat_responses")
+}
+
+// ============================================
+// Data Management
+// ============================================
+
+model DataExportRequest {
+  id             String   @id @default(cuid())
+  organizationId String
+  requestedById  String
+  status         String   @default("PENDING")
+  exportType     String
+  filters        Json?
+  downloadUrl    String?
+  expiresAt      DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("data_export_requests")
+}
+
+model DataDeletionRequest {
+  id             String   @id @default(cuid())
+  organizationId String
+  requestedById  String
+  status         String   @default("PENDING")
+  deletionType   String
+  reason         String?
+  scheduledAt    DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("data_deletion_requests")
+}
+
+// ============================================
+// Security
+// ============================================
+
+model SecurityEvent {
+  id             String   @id @default(cuid())
+  organizationId String?
+  userId         String?
+  eventType      String
+  severity       String   @default("INFO")
+  description    String?
+  metadata       Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("security_events")
+}
+
+model SupportAccessGrant {
+  id             String   @id @default(cuid())
+  organizationId String
+  grantedById    String
+  grantedToId    String
+  reason         String
+  expiresAt      DateTime
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("support_access_grants")
+}

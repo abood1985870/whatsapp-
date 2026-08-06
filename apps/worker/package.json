@@ -1,0 +1,25 @@
+{
+  "name": "@qanoai/worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.0.0",
+    "@nestjs/core": "^10.0.0",
+    "@qanoai/database": "workspace:*",
+    "@qanoai/queue": "workspace:*",
+    "@qanoai/config": "workspace:*",
+    "@qanoai/ai": "workspace:*",
+    "bullmq": "^5.0.0",
+    "axios": "^1.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.0"
+  }
+}

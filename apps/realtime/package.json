@@ -1,0 +1,24 @@
+{
+  "name": "@qanoai/realtime",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.4",
+    "@socket.io/redis-adapter": "^8.2.1",
+    "ioredis": "^5.3.2",
+    "jsonwebtoken": "^9.0.2",
+    "@qanoai/config": "workspace:*",
+    "@qanoai/database": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/jsonwebtoken": "^9.0.5",
+    "tsx": "^4.11.0",
+    "typescript": "^5.4.0"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "qanoai-whatsappsupport",
+  "version": "1.0.0",
+  "private": true,
+  "description": "QanoAI WhatsAppSupport - AI-powered WhatsApp customer support platform",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "concurrently \"pnpm --filter api dev\" \"pnpm --filter web dev\" \"pnpm --filter worker dev\" \"pnpm --filter realtime dev\"",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "test:unit": "turbo run test:unit",
+    "test:integration": "turbo run test:integration",
+    "test:e2e": "turbo run test:e2e",
+    "test:security": "turbo run test:security",
+    "db:generate": "pnpm --filter database db:generate",
+    "db:migrate": "pnpm --filter database db:migrate",
+    "db:deploy": "pnpm --filter database db:deploy",
+    "db:seed": "pnpm --filter database db:seed",
+    "db:reset": "pnpm --filter database db:reset",
+    "docker:up": "docker compose -f docker-compose.yml up -d",
+    "docker:down": "docker compose -f docker-compose.yml down",
+    "healthcheck": "pnpm --filter api healthcheck"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.4",
+    "prisma": "5.22.0",
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "5.22.0"
+  }
+}

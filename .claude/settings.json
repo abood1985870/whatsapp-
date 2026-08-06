@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --filter @qanoai/ai build)",
+      "Bash(node \"C:\\\\Users\\\\abood\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-abood-Desktop-qanoai-whatsappsupport\\\\8a6f263a-de3c-4204-bb71-2541c04e1071\\\\scratchpad\\\\test-ai-chain.js\")",
+      "PowerShell($ports = 3000,3001,3002; foreach \\($p in $ports\\) { try { $conns = Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction Stop | Select-Object -First 1; $proc = Get-Process -Id $conns.OwningProcess; Write-Output \\(\"port ${p}: PID $\\($proc.Id\\) started $\\($proc.StartTime\\)\"\\) } catch { Write-Output \\(\"port ${p}: not listening\"\\) } })",
+      "PowerShell(Get-Date; \\(Get-Item \"c:\\\\Users\\\\abood\\\\Desktop\\\\qanoai-whatsappsupport\\\\packages\\\\ai\\\\dist\\\\chat.js\"\\).LastWriteTime)"
+    ]
+  }
+}
