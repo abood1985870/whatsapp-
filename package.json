@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "concurrently": "^10.0.4",
+    "next": "^14.2.35",
     "prisma": "5.22.0",
     "turbo": "^2.0.0",
     "typescript": "^5.4.0"
@@ -33,6 +34,8 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@prisma/client": "5.22.0"
+    "@prisma/client": "5.22.0",
+    "express": "^5.2.1",
+    "http-proxy-middleware": "^4.2.0"
   }
 }
