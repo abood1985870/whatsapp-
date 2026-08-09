@@ -18,7 +18,7 @@ export async function isWithinWorkingHours(organizationId: string, now: Date = n
   if (!hours.length) return true; // No configured schedule = treat as always open
 
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  return hours.some(h => {
+  return hours.some((h: { startTime: string; endTime: string }) => {
     const [startH, startM] = h.startTime.split(':').map(Number);
     const [endH, endM] = h.endTime.split(':').map(Number);
     const start = startH * 60 + startM;

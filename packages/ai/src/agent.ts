@@ -93,6 +93,8 @@ export async function processAgentTurn(context: AgentContext): Promise<AgentResp
     role: msg.senderType === 'CUSTOMER' ? 'user' : 'assistant',
     content: msg.text || ''
   }));
+  const latestMessageIsAlreadyInHistory = chatMessages.at(-1)?.role === 'user'
+    && chatMessages.at(-1)?.content === maskedMessage;
 
   // Append System Prompt
   const systemPrompt = `
@@ -113,7 +115,7 @@ Decide your action carefully. If you are confident, reply. If you need a tool, c
   const messagesPayload = [
     { role: 'system', content: systemPrompt },
     ...chatMessages,
-    { role: 'user', content: maskedMessage }
+    ...(latestMessageIsAlreadyInHistory ? [] : [{ role: 'user', content: maskedMessage }])
   ];
 
   // 5. Ask OpenAI to decide the next action and provide the response

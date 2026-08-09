@@ -17,6 +17,24 @@ export async function processAiResponse(job: Job) {
       return;
     }
 
+    if (job.data.messageId) {
+      const latestInbound = await prisma.message.findFirst({
+        where: {
+          conversationId,
+          direction: 'INBOUND',
+          senderType: 'CUSTOMER',
+          deletedAt: null,
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true }
+      });
+
+      if (latestInbound && latestInbound.id !== job.data.messageId) {
+        logger.log(`Skipping stale AI job ${job.id}; newer inbound message exists for conversation ${conversationId}`);
+        return;
+      }
+    }
+
     const startedAt = Date.now();
     const response = await processAgentTurn({
       organizationId,
@@ -79,6 +97,9 @@ export async function processAiResponse(job: Job) {
         messageId: aiMessage.id
       });
     } else if (response.decision === 'HANDOFF') {
+      const agent = await prisma.aiAgent.findUnique({ where: { id: agentId } });
+      const handoffText = agent?.handoffMessage || agent?.fallbackMessage || 'وصلني طلبك، وبحوّله الآن لفريق الدعم عشان يرد عليك بدقة.';
+
       // 1. Update conversation mode to manual
       const updated = await prisma.conversation.update({
         where: { id: conversationId },
@@ -90,6 +111,21 @@ export async function processAiResponse(job: Job) {
         include: { contact: true }
       });
 
+      const handoffMessage = await prisma.message.create({
+        data: {
+          organizationId,
+          conversationId,
+          channelConnectionId: updated.channelConnectionId,
+          contactId: updated.contactId,
+          direction: 'OUTBOUND',
+          senderType: 'AI_AGENT',
+          messageType: 'TEXT',
+          text: handoffText,
+          providerStatus: 'PENDING',
+          isAiGenerated: true
+        }
+      });
+
       emitToOrganization(organizationId, 'conversation:updated', {
         id: updated.id,
         contact: { name: updated.contact.name, primaryPhone: updated.contact.primaryPhone, avatarUrl: updated.contact.avatarUrl },
@@ -97,6 +133,16 @@ export async function processAiResponse(job: Job) {
         mode: updated.mode,
         priority: updated.priority,
         lastMessageAt: updated.lastMessageAt
+      });
+      emitToOrganization(organizationId, 'message:new', {
+        id: handoffMessage.id,
+        conversationId,
+        text: handoffMessage.text,
+        direction: handoffMessage.direction,
+        senderType: handoffMessage.senderType,
+        createdAt: handoffMessage.createdAt,
+        providerStatus: handoffMessage.providerStatus,
+        isAiGenerated: handoffMessage.isAiGenerated
       });
 
       // 2. Log run
@@ -116,6 +162,10 @@ export async function processAiResponse(job: Job) {
           latencyMs,
           completedAt: new Date()
         }
+      });
+
+      await queues.whatsappOutgoing.add('send-ai-handoff', {
+        messageId: handoffMessage.id
       });
 
       logger.log(`Conversation ${conversationId} handed off to human agents.`);

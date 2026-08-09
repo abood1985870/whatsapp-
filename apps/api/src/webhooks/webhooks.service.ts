@@ -132,6 +132,8 @@ export class WebhooksService {
           agentId: agent.id,
           messageId: message.id,
           content: event.message.text,
+        }, {
+          delay: 5000,
         });
       } else {
         this.logger.warn(`No active AI agent for organization ${connection.organizationId}, skipping auto-reply`);
