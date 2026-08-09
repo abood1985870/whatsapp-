@@ -1,24 +1,33 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useEffect, useState } from "react";
+import { Bot, Plus, Settings, Play, Send, UserCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
-import { Bot, Plus, Settings, Play, Send, UserCheck } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
+
+const emptyAgent = { name: "", description: "" };
+
+function decisionLabel(decision: string) {
+  if (decision === "REPLY") return "رد مباشر";
+  if (decision === "HANDOFF") return "تحويل لموظف";
+  if (decision === "ASK_CLARIFICATION") return "طلب توضيح";
+  if (decision === "NO_REPLY") return "بدون رد";
+  return decision;
+}
 
 export default function AiAgentsPage() {
   const { user, loading: authLoading } = useAuth();
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [newAgentData, setNewAgentData] = useState({ name: "", description: "" });
-
+  const [newAgentData, setNewAgentData] = useState(emptyAgent);
   const [configAgent, setConfigAgent] = useState<any>(null);
   const [configData, setConfigData] = useState<any>({});
   const [configBusy, setConfigBusy] = useState(false);
   const [configFeedback, setConfigFeedback] = useState<string | null>(null);
-
   const [testAgent, setTestAgent] = useState<any>(null);
   const [testInput, setTestInput] = useState("");
   const [testBusy, setTestBusy] = useState(false);
@@ -52,7 +61,7 @@ export default function AiAgentsPage() {
     try {
       await api.post("/ai-agents", { organizationId: orgId, createdById: user?.id, ...newAgentData });
       setIsAddModalOpen(false);
-      setNewAgentData({ name: "", description: "" });
+      setNewAgentData(emptyAgent);
       fetchAgents();
     } catch (error) {
       console.error("Failed to create AI agent", error);
@@ -83,15 +92,16 @@ export default function AiAgentsPage() {
       await api.patch(`/ai-agents/${configAgent.id}`, configData);
       if (publishAfter) {
         await api.post(`/ai-agents/${configAgent.id}/publish`);
-        setConfigFeedback("تم الحفظ والنشر — الوكيل نشط الآن");
+        setConfigFeedback("تم الحفظ والنشر. الوكيل نشط الآن.");
       } else {
-        setConfigFeedback("تم حفظ الإعدادات");
+        setConfigFeedback("تم حفظ الإعدادات.");
       }
       fetchAgents();
     } catch (error: any) {
-      setConfigFeedback(error?.response?.data?.error?.message || "حدث خطأ أثناء الحفظ");
+      setConfigFeedback(error?.response?.data?.error?.message || "حدث خطأ أثناء الحفظ.");
+    } finally {
+      setConfigBusy(false);
     }
-    setConfigBusy(false);
   };
 
   const runTest = async () => {
@@ -102,23 +112,18 @@ export default function AiAgentsPage() {
       const res = await api.post(`/ai-agents/${testAgent.id}/test`, { input: testInput });
       setTestResult(res.data.data);
     } catch (error: any) {
-      setTestResult({ error: error?.response?.data?.error?.message || "فشل الاختبار — تأكد من إعداد مفتاح OpenAI" });
+      setTestResult({ error: error?.response?.data?.error?.message || "فشل الاختبار. تأكد من إعداد مفتاح الذكاء الاصطناعي." });
+    } finally {
+      setTestBusy(false);
     }
-    setTestBusy(false);
   };
-
-  const decisionLabel = (d: string) =>
-    d === "REPLY" ? "رد مباشر" :
-    d === "HANDOFF" ? "تحويل لموظف" :
-    d === "ASK_CLARIFICATION" ? "طلب توضيح" :
-    d === "NO_REPLY" ? "بدون رد" : d;
 
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">وكلاء الذكاء الاصطناعي</h1>
-          <p className="text-gray-500 text-sm">إدارة مساعدي الذكاء الاصطناعي المخصصين للرد على العملاء</p>
+          <p className="text-gray-500 text-sm">إدارة مساعدين مخصصين للرد على عملاء واتساب تلقائياً.</p>
         </div>
         <Button onClick={() => setIsAddModalOpen(true)} className="gap-2">
           <Plus className="w-4 h-4" />
@@ -133,7 +138,7 @@ export default function AiAgentsPage() {
           <div className="p-16 text-center text-gray-500 flex flex-col items-center">
             <Bot className="w-12 h-12 text-gray-300 mb-4" />
             <p className="font-medium text-gray-900">لا يوجد وكلاء ذكاء اصطناعي</p>
-            <p className="text-sm mt-1">قم بإنشاء أول وكيل ذكاء اصطناعي للرد على استفسارات عملائك تلقائياً.</p>
+            <p className="text-sm mt-1">أنشئ أول وكيل للرد على استفسارات العملاء تلقائياً.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
@@ -143,14 +148,14 @@ export default function AiAgentsPage() {
                   <div className="w-10 h-10 bg-gold-500/10 text-gold-600 rounded-lg flex items-center justify-center">
                     <Bot className="w-5 h-5" />
                   </div>
-                  <span className={`px-2 py-1 text-xs rounded-full ${agent.status === 'ACTIVE' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {agent.status === 'ACTIVE' ? 'نشط' : 'مسودة'}
+                  <span className={`px-2 py-1 text-xs rounded-full ${agent.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+                    {agent.status === "ACTIVE" ? "نشط" : "مسودة"}
                   </span>
                 </div>
                 <h3 className="font-bold text-gray-900 text-lg mb-1">{agent.name}</h3>
                 <p className="text-gray-500 text-sm mb-4 line-clamp-2">{agent.description || "بدون وصف"}</p>
                 <div className="flex items-center gap-2 text-xs text-gray-400 mb-6">
-                  <span>تحديث: {new Date(agent.updatedAt).toLocaleDateString("ar-SA")}</span>
+                  <span>آخر تحديث: {new Date(agent.updatedAt).toLocaleDateString("ar-SA")}</span>
                 </div>
 
                 <div className="flex gap-2 border-t pt-4">
@@ -158,8 +163,11 @@ export default function AiAgentsPage() {
                     <Settings className="w-3.5 h-3.5" />
                     الإعدادات
                   </Button>
-                  <Button variant="secondary" className="flex-1 gap-2 text-xs bg-gold-50 hover:bg-gold-100 text-gold-700 border border-gold-200"
-                    onClick={() => { setTestAgent(agent); setTestInput(""); setTestResult(null); }}>
+                  <Button
+                    variant="secondary"
+                    className="flex-1 gap-2 text-xs bg-gold-50 hover:bg-gold-100 text-gold-700 border border-gold-200"
+                    onClick={() => { setTestAgent(agent); setTestInput(""); setTestResult(null); }}
+                  >
                     <Play className="w-3.5 h-3.5" />
                     اختبار
                   </Button>
@@ -170,15 +178,14 @@ export default function AiAgentsPage() {
         )}
       </div>
 
-      {/* Create agent */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="إنشاء وكيل ذكاء اصطناعي">
         <div className="space-y-4 pt-2">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">اسم الوكيل</label>
             <Input
               value={newAgentData.name}
-              onChange={(e) => setNewAgentData({...newAgentData, name: e.target.value})}
-              placeholder="مثال: المساعد الذكي للدعم الفني"
+              onChange={(e) => setNewAgentData({ ...newAgentData, name: e.target.value })}
+              placeholder="مثال: مساعد الدعم"
             />
           </div>
           <div>
@@ -186,18 +193,17 @@ export default function AiAgentsPage() {
             <textarea
               className="w-full rounded-md border border-gray-200 p-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 min-h-[80px]"
               value={newAgentData.description}
-              onChange={(e) => setNewAgentData({...newAgentData, description: e.target.value})}
+              onChange={(e) => setNewAgentData({ ...newAgentData, description: e.target.value })}
               placeholder="وصف قصير لدور هذا الوكيل..."
             />
           </div>
           <Button className="w-full" onClick={handleAddAgent} disabled={!newAgentData.name.trim()}>
             إنشاء الوكيل
           </Button>
-          <p className="text-xs text-gray-400 text-center">بعد الإنشاء، افتح "الإعدادات" لكتابة تعليمات الوكيل ثم انشره.</p>
+          <p className="text-xs text-gray-400 text-center">بعد الإنشاء، افتح الإعدادات واكتب تعليمات الوكيل ثم انشره.</p>
         </div>
       </Modal>
 
-      {/* Configure agent */}
       <Modal isOpen={!!configAgent} onClose={() => setConfigAgent(null)} title={`إعدادات: ${configAgent?.name || ""}`}>
         <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto pl-1">
           {configFeedback && (
@@ -206,12 +212,12 @@ export default function AiAgentsPage() {
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">تعليمات الوكيل (شخصيته ومعرفته وحدوده)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">تعليمات الوكيل</label>
             <textarea
               className="w-full rounded-md border border-gray-200 p-3 text-sm min-h-[140px]"
               value={configData.systemInstructions}
               onChange={(e) => setConfigData({ ...configData, systemInstructions: e.target.value })}
-              placeholder="مثال: أنت مساعد دعم لمتجر إلكتروني سعودي. أجب بأدب وباختصار. الشحن خلال 3-5 أيام عمل. الاسترجاع خلال 14 يوم..."
+              placeholder="مثال: أنت مساعد دعم عربي. أجب باختصار ووضوح، ولا تخترع معلومات غير موجودة."
             />
           </div>
           <div>
@@ -219,34 +225,44 @@ export default function AiAgentsPage() {
             <Input
               value={configData.handoffMessage}
               onChange={(e) => setConfigData({ ...configData, handoffMessage: e.target.value })}
-              placeholder="سيتم تحويلك لأحد موظفينا خلال لحظات..."
+              placeholder="سأحوّلك لأحد الموظفين لمساعدتك."
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">رسالة خارج أوقات العمل</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">رسالة بديلة</label>
             <Input
               value={configData.fallbackMessage}
               onChange={(e) => setConfigData({ ...configData, fallbackMessage: e.target.value })}
-              placeholder="نعتذر، نحن خارج أوقات العمل حالياً..."
+              placeholder="لم أتمكن من الإجابة بدقة، سأحوّلك للدعم."
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">حد الثقة (0 - 1)</label>
-              <Input type="number" step="0.05" min="0" max="1"
+              <label className="block text-sm font-medium text-gray-700 mb-1">حد الثقة</label>
+              <Input
+                type="number"
+                step="0.05"
+                min="0"
+                max="1"
                 value={configData.confidenceThreshold}
                 onChange={(e) => setConfigData({ ...configData, confidenceThreshold: parseFloat(e.target.value) || 0.7 })}
               />
             </div>
             <div className="flex flex-col justify-end gap-2 pb-1">
               <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={configData.autoReplyEnabled}
-                  onChange={(e) => setConfigData({ ...configData, autoReplyEnabled: e.target.checked })} />
+                <input
+                  type="checkbox"
+                  checked={configData.autoReplyEnabled}
+                  onChange={(e) => setConfigData({ ...configData, autoReplyEnabled: e.target.checked })}
+                />
                 الرد الآلي مفعّل
               </label>
               <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={configData.workingHoursOnly}
-                  onChange={(e) => setConfigData({ ...configData, workingHoursOnly: e.target.checked })} />
+                <input
+                  type="checkbox"
+                  checked={configData.workingHoursOnly}
+                  onChange={(e) => setConfigData({ ...configData, workingHoursOnly: e.target.checked })}
+                />
                 ضمن أوقات العمل فقط
               </label>
             </div>
@@ -258,7 +274,6 @@ export default function AiAgentsPage() {
         </div>
       </Modal>
 
-      {/* Test agent */}
       <Modal isOpen={!!testAgent} onClose={() => setTestAgent(null)} title={`اختبار: ${testAgent?.name || ""}`}>
         <div className="space-y-4 pt-2">
           <div className="flex gap-2">
@@ -266,7 +281,7 @@ export default function AiAgentsPage() {
               value={testInput}
               onChange={(e) => setTestInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") runTest(); }}
-              placeholder="اكتب رسالة كأنك العميل... مثال: كم مدة الشحن؟"
+              placeholder="اكتب رسالة كأنك العميل..."
             />
             <Button onClick={runTest} disabled={testBusy || !testInput.trim()} className="gap-1 shrink-0">
               <Send className="w-4 h-4" />
@@ -288,7 +303,10 @@ export default function AiAgentsPage() {
               {testResult.output ? (
                 <div className="bg-white border rounded-lg p-3 text-sm text-gray-800 whitespace-pre-wrap">{testResult.output}</div>
               ) : (
-                <div className="text-sm text-gray-500 flex items-center gap-2"><UserCheck className="w-4 h-4" /> {testResult.reason}</div>
+                <div className="text-sm text-gray-500 flex items-center gap-2">
+                  <UserCheck className="w-4 h-4" />
+                  {testResult.reason}
+                </div>
               )}
             </div>
           )}
