@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
-import { MessageCircle, Plus, QrCode, RefreshCw, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, MessageCircle, Plus, QrCode, RefreshCw, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 
 const pendingStatuses = ["PENDING", "QR_REQUIRED", "CONNECTING", "CREATING"];
+
+function statusLabel(status: string) {
+  if (status === "CONNECTED") return "متصل";
+  if (pendingStatuses.includes(status)) return "في الانتظار";
+  if (status === "ERROR") return "يحتاج حذف أو إعادة محاولة";
+  return "غير متصل";
+}
 
 export default function WhatsAppConnectionsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -18,8 +25,22 @@ export default function WhatsAppConnectionsPage() {
   const [newConnectionName, setNewConnectionName] = useState("");
   const [currentQr, setCurrentQr] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const orgId = user?.memberships?.[0]?.organizationId;
+
+  const activeSetupConnection = useMemo(
+    () => connections.find((connection) => connection.status !== "CONNECTED"),
+    [connections]
+  );
+
+  const visibleConnections = useMemo(() => {
+    const connected = connections.filter((connection) => connection.status === "CONNECTED");
+    return activeSetupConnection ? [activeSetupConnection, ...connected] : connected;
+  }, [activeSetupConnection, connections]);
+
+  const hiddenDuplicates = Math.max(0, connections.length - visibleConnections.length);
+  const canCreateNewConnection = !activeSetupConnection;
 
   const fetchConnections = async () => {
     if (!orgId) return;
@@ -29,6 +50,7 @@ export default function WhatsAppConnectionsPage() {
       setConnections(res.data.data || []);
     } catch (error) {
       console.error("Failed to fetch connections", error);
+      setFeedback("تعذر تحميل اتصالات واتساب. حاول تحديث الصفحة.");
     } finally {
       setLoading(false);
     }
@@ -43,14 +65,22 @@ export default function WhatsAppConnectionsPage() {
   }, [authLoading, orgId]);
 
   const handleAddConnection = async () => {
-    if (!newConnectionName.trim() || !orgId) return;
+    if (!orgId) return;
+    if (!canCreateNewConnection) {
+      setIsAddModalOpen(false);
+      setFeedback("أكمل الربط الحالي أولاً أو احذفه قبل إنشاء ربط جديد.");
+      return;
+    }
+    if (!newConnectionName.trim()) return;
     try {
       await api.post("/whatsapp/connections", { organizationId: orgId, name: newConnectionName.trim() });
       setIsAddModalOpen(false);
       setNewConnectionName("");
+      setFeedback(null);
       fetchConnections();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to add connection", error);
+      setFeedback(error?.response?.data?.error?.message || "تعذر إنشاء اتصال واتساب جديد.");
     }
   };
 
@@ -62,14 +92,13 @@ export default function WhatsAppConnectionsPage() {
       const res = await api.get(`/whatsapp/connections/${id}/qr`);
       const qrCode = res.data.data.qrCode || res.data.data.qrcode;
       if (!qrCode) {
-        setQrError("رمز QR غير متاح حالياً. اضغط تحديث الحالة أو أنشئ اتصالاً جديداً.");
+        setQrError("رمز QR غير متاح حالياً. اضغط تحديث الحالة أو احذف الاتصال وأنشئ واحداً جديداً بعد قليل.");
         return;
       }
       setCurrentQr(qrCode);
     } catch (error: any) {
       console.error("Failed to fetch QR", error);
-      const message = error?.response?.data?.error?.message;
-      setQrError(message || "تعذر جلب رمز QR الآن. جرّب تحديث الاتصال أو إنشاء اتصال جديد.");
+      setQrError(error?.response?.data?.error?.message || "تعذر جلب رمز QR الآن. حاول مرة أخرى بعد قليل.");
     }
   };
 
@@ -77,17 +106,12 @@ export default function WhatsAppConnectionsPage() {
     if (!confirm("هل أنت متأكد من حذف هذا الاتصال؟")) return;
     try {
       await api.delete(`/whatsapp/connections/${id}`);
+      setFeedback(null);
       fetchConnections();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to delete connection", error);
+      setFeedback(error?.response?.data?.error?.message || "تعذر حذف الاتصال.");
     }
-  };
-
-  const statusLabel = (status: string) => {
-    if (status === "CONNECTED") return "متصل";
-    if (pendingStatuses.includes(status)) return "في الانتظار";
-    if (status === "ERROR") return "يحتاج إعادة إنشاء";
-    return "غير متصل";
   };
 
   return (
@@ -95,13 +119,29 @@ export default function WhatsAppConnectionsPage() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">اتصالات واتساب</h1>
-          <p className="text-gray-500 text-sm">كل عميل يضيف رقمه ويمسح QR الخاص بحسابه فقط.</p>
+          <p className="text-gray-500 text-sm">أكمل ربط الرقم الحالي أولاً. لا يمكن إنشاء ربط جديد قبل اكتمال الأول.</p>
         </div>
-        <Button onClick={() => setIsAddModalOpen(true)} className="gap-2">
+        <Button
+          onClick={() => canCreateNewConnection ? setIsAddModalOpen(true) : setFeedback("أكمل الربط الحالي أولاً أو احذفه قبل إنشاء ربط جديد.")}
+          className="gap-2"
+          disabled={!canCreateNewConnection}
+          title={!canCreateNewConnection ? "أكمل الربط الحالي أولاً" : "إضافة رقم جديد"}
+        >
           <Plus className="w-4 h-4" />
           إضافة رقم جديد
         </Button>
       </div>
+
+      {(feedback || hiddenDuplicates > 0 || activeSetupConnection) && (
+        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex gap-3">
+          <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            {activeSetupConnection && <p>يوجد ربط غير مكتمل. امسح QR لهذا الربط أو احذفه قبل إنشاء ربط جديد.</p>}
+            {hiddenDuplicates > 0 && <p>تم إخفاء {hiddenDuplicates} ربط مكرر قديم لتقليل اللخبطة. التنظيف النهائي يحتاج موافقتك الصريحة.</p>}
+            {feedback && <p>{feedback}</p>}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
         {loading ? (
@@ -112,7 +152,7 @@ export default function WhatsAppConnectionsPage() {
             <p className="font-medium text-gray-900">لا توجد منظمة مرتبطة بالحساب</p>
             <p className="text-sm mt-1">سجل الدخول بحساب عميل فعّال أو اطلب من مالك المنصة إنشاء حساب عميل لك.</p>
           </div>
-        ) : connections.length === 0 ? (
+        ) : visibleConnections.length === 0 ? (
           <div className="p-16 text-center text-gray-500 flex flex-col items-center">
             <MessageCircle className="w-12 h-12 text-gray-300 mb-4" />
             <p className="font-medium text-gray-900">لا توجد اتصالات حالياً</p>
@@ -130,7 +170,7 @@ export default function WhatsAppConnectionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {connections.map((conn) => {
+              {visibleConnections.map((conn) => {
                 const connected = conn.status === "CONNECTED";
                 const pending = pendingStatuses.includes(conn.status);
                 return (
@@ -190,7 +230,7 @@ export default function WhatsAppConnectionsPage() {
       <Modal isOpen={isQrModalOpen} onClose={() => setIsQrModalOpen(false)} title="ربط واتساب">
         <div className="flex flex-col items-center justify-center p-4 space-y-4">
           <p className="text-sm text-gray-500 text-center mb-2">
-            افتح واتساب في الجوال، ثم الأجهزة المرتبطة، وبعدها امسح الرمز.
+            افتح واتساب في الجوال، ثم الأجهزة المرتبطة، وبعدها امسح الرمز. استخدم QR واحد فقط ولا تضغط إنشاء ربط جديد.
           </p>
           {currentQr ? (
             <img src={currentQr} alt="WhatsApp QR Code" className="w-64 h-64 border rounded-xl shadow-sm" />

@@ -10,15 +10,15 @@ export class WhatsAppService {
   constructor(private readonly evolutionProvider: EvolutionProvider) {}
   
   async createConnection(organizationId: string, name: string): Promise<any> {
-    const existingPending = await prisma.channelConnection.findFirst({
+    const existingIncomplete = await prisma.channelConnection.findFirst({
       where: {
         organizationId,
         deletedAt: null,
-        status: { in: ["CREATING", "QR_REQUIRED", "CONNECTING", "PENDING"] },
+        status: { not: "CONNECTED" },
       },
       orderBy: { createdAt: "desc" },
     });
-    if (existingPending) return existingPending;
+    if (existingIncomplete) return existingIncomplete;
 
     const connection = await prisma.channelConnection.create({ data: { organizationId, name, status: "CREATING" } });
     try {
