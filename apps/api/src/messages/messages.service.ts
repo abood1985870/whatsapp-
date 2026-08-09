@@ -117,7 +117,9 @@ export class MessagesService {
           phoneNumber,
           url: mediaUrl,
           caption: dto.caption,
-          mediaType: file.mimetype?.split('/')[0] || "document"
+          mediaType: this.toEvolutionMediaType(file.mimetype),
+          mimeType: file.mimetype,
+          fileName: file.originalname
         });
         providerStatus = "SENT";
         providerMessageId = result.messageId;
@@ -238,5 +240,11 @@ export class MessagesService {
     const uniqueId = generateCorrelationId();
     const ext = file?.originalname?.split('.').pop() || "bin";
     return `http://localhost:9000/qanoai-media/${uniqueId}.${ext}`;
+  }
+
+  private toEvolutionMediaType(mimeType?: string): string {
+    const type = mimeType?.split("/")[0];
+    if (type === "image" || type === "video" || type === "audio") return type;
+    return "document";
   }
 }

@@ -8,7 +8,7 @@ import { AppModule } from "./app.module";
 import { HttpExceptionFilter } from "./common/filters/http-exception.filter";
 import { TransformInterceptor } from "./common/interceptors/transform.interceptor";
 import { CorrelationInterceptor } from "./common/interceptors/correlation.interceptor";
-import { config } from "@qanoai/config";
+import { config, getAllowedOrigins } from "@qanoai/config";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -31,7 +31,7 @@ async function bootstrap() {
   app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
   app.enableCors({
-    origin: process.env.NODE_ENV === "production" ? process.env.APP_URL : "*",
+    origin: getAllowedOrigins(),
     credentials: true,
   });
 

@@ -15,8 +15,13 @@ const envSchema = z.object({
   APP_URL: z.string().url().default("http://localhost:3000"),
   API_URL: z.string().url().default("http://localhost:3001"),
   REALTIME_URL: z.string().url().default("http://localhost:3002"),
+  CORS_ORIGINS: z.string().optional(),
   DATABASE_URL: z.string().startsWith("postgresql://"),
   REDIS_URL: z.string().default("redis://localhost:6379"),
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
+  SUPABASE_SECRET_KEY: z.string().optional(),
+  SUPABASE_JWKS_URL: z.string().url().optional(),
   AUTH_SECRET: z.string().min(32),
   AUTH_ENCRYPTION_KEY: z.string().min(32),
   CREDENTIAL_ENCRYPTION_KEY: z.string().min(32),
@@ -28,6 +33,7 @@ const envSchema = z.object({
   EVOLUTION_API_URL: z.string().url().optional(),
   EVOLUTION_API_KEY: z.string().optional(),
   EVOLUTION_WEBHOOK_BASE_URL: z.string().url().optional(),
+  EVOLUTION_WEBHOOK_SECRET: z.string().optional(),
   S3_ENDPOINT: z.string().url().optional(),
   S3_REGION: z.string().default("us-east-1"),
   S3_BUCKET_PRIVATE: z.string().default("qanoai-private"),
@@ -57,3 +63,11 @@ if (!parsed.success) {
 
 export const config = parsed.data;
 export type Config = z.infer<typeof envSchema>;
+
+export function getAllowedOrigins(): string[] | true {
+  if (config.CORS_ORIGINS) {
+    return config.CORS_ORIGINS.split(",").map((origin) => origin.trim()).filter(Boolean);
+  }
+
+  return config.NODE_ENV === "production" ? [config.APP_URL] : true;
+}

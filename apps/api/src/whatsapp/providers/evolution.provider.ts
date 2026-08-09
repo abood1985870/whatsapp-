@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { HttpService } from "@nestjs/axios";
 import { firstValueFrom } from "rxjs";
 import { config } from "@qanoai/config";
+import { createHmac, timingSafeEqual } from "crypto";
 import { WhatsAppProvider, CreateInstanceInput, QrCodeResult, ConnectionState, SendTextInput, SendTemplateInput, SendMediaInput, SetWebhookInput, ProviderMessageResult, ValidatedWebhookEvent } from "./whatsapp-provider.interface";
 
 @Injectable()
@@ -55,13 +56,25 @@ export class EvolutionProvider implements WhatsAppProvider {
   }
 
   async sendMedia(input: SendMediaInput): Promise<ProviderMessageResult> {
-    const response = await firstValueFrom(this.httpService.post(`${this.baseUrl}/message/sendMedia/${input.instanceId}`, { number: input.phoneNumber, mediaMessage: { mediatype: input.mediaType, media: input.url, caption: input.caption } }, { headers: { apikey: this.apiKey } }));
+    const response = await firstValueFrom(this.httpService.post(`${this.baseUrl}/message/sendMedia/${input.instanceId}`, {
+      number: input.phoneNumber,
+      mediatype: input.mediaType,
+      mimetype: input.mimeType || "application/octet-stream",
+      media: input.url,
+      caption: input.caption || "",
+      fileName: input.fileName || "media"
+    }, { headers: { apikey: this.apiKey } }));
     return { messageId: response.data.key?.id || "unknown", status: "SENT" };
   }
 
   async setWebhook(input: SetWebhookInput): Promise<void> {
-    // Evolution API v2 payload shape: settings nested under a "webhook" key
-    await firstValueFrom(this.httpService.post(`${this.baseUrl}/webhook/set/${input.instanceId}`, { webhook: { enabled: true, url: input.url, byEvents: false, events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"] } }, { headers: { apikey: this.apiKey } }));
+    await firstValueFrom(this.httpService.post(`${this.baseUrl}/webhook/set/${input.instanceId}`, {
+      enabled: true,
+      url: input.url,
+      webhookByEvents: false,
+      webhookBase64: false,
+      events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"]
+    }, { headers: { apikey: this.apiKey } }));
   }
 
   async getMediaBuffer(instanceId: string, messageId: string): Promise<Buffer> {
@@ -71,6 +84,11 @@ export class EvolutionProvider implements WhatsAppProvider {
 
   async validateWebhook(input: unknown, headers: any): Promise<ValidatedWebhookEvent | null> {
     try { 
+      if (!this.isValidSignature(input, headers)) {
+        this.logger.warn("Rejected Evolution webhook with invalid signature");
+        return null;
+      }
+
       const payload = input as any; 
       if (!payload.data?.key?.remoteJid) return null; 
       return { 
@@ -87,5 +105,26 @@ export class EvolutionProvider implements WhatsAppProvider {
     } catch { 
       return null; 
     }
+  }
+
+  private isValidSignature(input: unknown, headers: any): boolean {
+    if (!config.EVOLUTION_WEBHOOK_SECRET) return true;
+
+    const provided = String(
+      headers?.["x-evolution-signature"] ||
+      headers?.["x-hub-signature-256"] ||
+      headers?.["x-signature"] ||
+      ""
+    ).replace(/^sha256=/, "");
+
+    if (!provided) return false;
+
+    const expected = createHmac("sha256", config.EVOLUTION_WEBHOOK_SECRET)
+      .update(JSON.stringify(input))
+      .digest("hex");
+
+    const providedBuffer = Buffer.from(provided, "hex");
+    const expectedBuffer = Buffer.from(expected, "hex");
+    return providedBuffer.length === expectedBuffer.length && timingSafeEqual(providedBuffer, expectedBuffer);
   }
 }

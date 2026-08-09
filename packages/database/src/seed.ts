@@ -66,6 +66,7 @@ async function main() {
 
   // Assign ALL permissions to OWNER role
   const allPerms = await prisma.permission.findMany();
+  type SeedPermission = (typeof allPerms)[number];
   for (const perm of allPerms) {
     await prisma.rolePermission.upsert({
       where: { roleId_permissionId: { roleId: createdRoles["ORGANIZATION_OWNER"], permissionId: perm.id } },
@@ -82,7 +83,7 @@ async function main() {
     "ai.read", "ai.configure", "knowledge.read", "knowledge.upload",
     "analytics.read", "message.send", "message.read", "message.broadcast",
   ];
-  const managerPerms = allPerms.filter(p => managerPermCodes.includes(p.code));
+  const managerPerms = allPerms.filter((p: SeedPermission) => managerPermCodes.includes(p.code));
   for (const perm of managerPerms) {
     await prisma.rolePermission.upsert({
       where: { roleId_permissionId: { roleId: createdRoles["SUPPORT_MANAGER"], permissionId: perm.id } },
@@ -97,7 +98,7 @@ async function main() {
     "contacts.read", "ai.read", "knowledge.read",
     "message.send", "message.read",
   ];
-  const agentPerms = allPerms.filter(p => agentPermCodes.includes(p.code));
+  const agentPerms = allPerms.filter((p: SeedPermission) => agentPermCodes.includes(p.code));
   for (const perm of agentPerms) {
     await prisma.rolePermission.upsert({
       where: { roleId_permissionId: { roleId: createdRoles["SUPPORT_AGENT"], permissionId: perm.id } },

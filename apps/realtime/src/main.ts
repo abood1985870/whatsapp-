@@ -3,11 +3,12 @@ import { Server, Socket } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import IORedis from "ioredis";
 import jwt from "jsonwebtoken";
-import { config } from "@qanoai/config";
+import { config, getAllowedOrigins } from "@qanoai/config";
+import { prisma } from "@qanoai/database";
 
 const httpServer = createServer();
 const io = new Server(httpServer, {
-  cors: { origin: "*", credentials: true }, // Ideally restrict origin in production
+  cors: { origin: getAllowedOrigins(), credentials: true },
 });
 
 // Setup Redis Adapter for multi-node / microservices broadcasting
@@ -16,13 +17,14 @@ const subClient = pubClient.duplicate();
 io.adapter(createAdapter(pubClient, subClient));
 
 interface TokenPayload {
+  sub?: string;
   userId: string;
-  organizationId: string;
-  role: string;
+  organizationId?: string;
+  role?: string;
 }
 
 // 1. Authentication Middleware
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   const token = socket.handshake.auth.token || socket.handshake.query.token;
   
   if (!token) {
@@ -31,12 +33,27 @@ io.use((socket, next) => {
 
   try {
     const decoded = jwt.verify(token, config.AUTH_SECRET) as TokenPayload;
-    
-    // Attach user payload to socket data
+    const userId = decoded.userId || decoded.sub;
+    if (!userId) return next(new Error("INVALID_TOKEN"));
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { memberships: { include: { role: true } } },
+    });
+
+    if (!user || user.status !== "ACTIVE") return next(new Error("USER_INACTIVE"));
+
+    const activeMemberships = user.memberships.filter((membership: any) => membership.status === "ACTIVE");
+    const membership = decoded.organizationId
+      ? activeMemberships.find((item: any) => item.organizationId === decoded.organizationId)
+      : activeMemberships[0];
+
+    if (!membership) return next(new Error("ORGANIZATION_ACCESS_DENIED"));
+
     socket.data = {
-      userId: decoded.userId,
-      organizationId: decoded.organizationId,
-      role: decoded.role
+      userId,
+      organizationId: membership.organizationId,
+      role: membership.role.name
     };
     
     next();
@@ -59,9 +76,17 @@ io.on("connection", (socket: Socket) => {
   socket.to(orgRoom).emit("presence", { userId, status: "ONLINE" });
 
   // 4. Conversation Rooms Management
-  socket.on("join-conversation", (conversationId: string) => {
-    // Basic validation: user should belong to the org of this conversation
-    // In a fully strict system we'd verify the conversation belongs to socket.data.organizationId in DB
+  socket.on("join-conversation", async (conversationId: string) => {
+    const conversation = await prisma.conversation.findFirst({
+      where: { id: conversationId, organizationId },
+      select: { id: true },
+    });
+
+    if (!conversation) {
+      socket.emit("error", { code: "CONVERSATION_ACCESS_DENIED" });
+      return;
+    }
+
     const convRoom = `conv:${conversationId}`;
     socket.join(convRoom);
     console.log(`Socket ${socket.id} joined ${convRoom}`);
