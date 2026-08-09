@@ -36,7 +36,7 @@ export class OrganizationsController {
 
   @Get(":id/members")
   @UseGuards(OrganizationGuard, PermissionGuard)
-  @RequirePermission("member.read")
+  @RequirePermission("members.read")
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
   async listMembers(@Param("id") id: string, @Query("page") page = 1, @Query("limit") limit = 10) {
@@ -45,42 +45,42 @@ export class OrganizationsController {
 
   @Post(":id/invite")
   @UseGuards(OrganizationGuard, PermissionGuard)
-  @RequirePermission("member.invite")
+  @RequirePermission("members.invite")
   async inviteMember(@Param("id") id: string, @Body() dto: any, @CurrentUser() user: any) {
     return this.orgsService.inviteMember(id, dto, user.id);
   }
 
   @Patch(":id/members/:membershipId")
   @UseGuards(OrganizationGuard, PermissionGuard)
-  @RequirePermission("member.update")
+  @RequirePermission("members.update")
   async updateMemberRole(@Param("id") id: string, @Param("membershipId") membershipId: string, @Body() dto: any) {
     return this.orgsService.updateMemberRole(id, membershipId, dto);
   }
 
   @Delete(":id/members/:membershipId")
   @UseGuards(OrganizationGuard, PermissionGuard)
-  @RequirePermission("member.delete")
+  @RequirePermission("members.remove")
   async removeMember(@Param("id") id: string, @Param("membershipId") membershipId: string) {
     return this.orgsService.removeMember(id, membershipId);
   }
 
   @Get(":id/roles")
   @UseGuards(OrganizationGuard, PermissionGuard)
-  @RequirePermission("role.read")
+  @RequirePermission("roles.read")
   async listRoles(@Param("id") id: string) {
     return this.orgsService.listRoles(id);
   }
 
   @Post(":id/roles")
   @UseGuards(OrganizationGuard, PermissionGuard)
-  @RequirePermission("role.create")
+  @RequirePermission("roles.manage")
   async createRole(@Param("id") id: string, @Body() dto: any) {
     return this.orgsService.createRole(id, dto);
   }
 
   @Patch(":id/roles/:roleId")
   @UseGuards(OrganizationGuard, PermissionGuard)
-  @RequirePermission("role.update")
+  @RequirePermission("roles.manage")
   async updateRole(@Param("id") id: string, @Param("roleId") roleId: string, @Body() dto: any) {
     return this.orgsService.updateRole(id, roleId, dto);
   }

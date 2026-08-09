@@ -15,6 +15,7 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
 import { AuditModule } from "./audit/audit.module";
 import { FilesModule } from "./files/files.module";
+import { PlatformModule } from "./platform/platform.module";
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { FilesModule } from "./files/files.module";
     WebhooksModule,
     AuditModule,
     FilesModule,
+    PlatformModule,
   ],
 })
 export class AppModule {}

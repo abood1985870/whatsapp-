@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, Logger, ForbiddenException } from "@nestjs/common";
 import { prisma } from "@qanoai/database";
 import { EvolutionProvider } from "./providers/evolution.provider";
 import { config } from "@qanoai/config";
@@ -32,16 +32,27 @@ export class WhatsAppService {
     }
   }
   
-  async getQrCode(connectionId: string): Promise<any> {
-    const connection = await prisma.channelConnection.findUnique({ where: { id: connectionId } }); 
+  private async findAuthorizedConnection(connectionId: string, user: any): Promise<any> {
+    const connection = await prisma.channelConnection.findFirst({ where: { id: connectionId, deletedAt: null } });
     if (!connection) throw new NotFoundException("CONNECTION_NOT_FOUND");
+
+    const hasAccess = (user?.memberships || []).some(
+      (membership: any) => membership.organizationId === connection.organizationId && membership.status === "ACTIVE"
+    );
+    if (!hasAccess) throw new ForbiddenException("ORGANIZATION_ACCESS_DENIED");
+
+    return connection;
+  }
+
+  async getQrCode(connectionId: string, user: any): Promise<any> {
+    const connection = await this.findAuthorizedConnection(connectionId, user);
+    if (!connection.providerInstanceId) throw new BadRequestException("CONNECTION_PROVIDER_INSTANCE_MISSING");
     const qr = await this.evolutionProvider.requestQrCode(connection.providerInstanceId!); 
     return { qrCode: qr.qrCode, expiresAt: qr.expiresAt };
   }
   
-  async getStatus(connectionId: string): Promise<any> {
-    const connection = await prisma.channelConnection.findUnique({ where: { id: connectionId } }); 
-    if (!connection) throw new NotFoundException("CONNECTION_NOT_FOUND"); 
+  async getStatus(connectionId: string, user: any): Promise<any> {
+    const connection = await this.findAuthorizedConnection(connectionId, user);
     if (!connection.providerInstanceId) return { status: connection.status };
     
     const state = await this.evolutionProvider.getConnectionState(connection.providerInstanceId); 
@@ -51,9 +62,8 @@ export class WhatsAppService {
     return { status: state.status, phoneNumber: state.phoneNumber, error: state.error };
   }
   
-  async deleteConnection(connectionId: string): Promise<any> {
-    const connection = await prisma.channelConnection.findUnique({ where: { id: connectionId } }); 
-    if (!connection) throw new NotFoundException("CONNECTION_NOT_FOUND"); 
+  async deleteConnection(connectionId: string, user: any): Promise<any> {
+    const connection = await this.findAuthorizedConnection(connectionId, user);
     if (connection.providerInstanceId) { 
       try { 
         await this.evolutionProvider.disconnect(connection.providerInstanceId); 
@@ -70,45 +80,45 @@ export class WhatsAppService {
     return prisma.channelConnection.findMany({ where: { organizationId, deletedAt: null }, orderBy: { createdAt: "desc" } }); 
   }
 
-  async reconnect(connectionId: string): Promise<any> {
-    const connection = await prisma.channelConnection.findUnique({ where: { id: connectionId } });
-    if (!connection || !connection.providerInstanceId) throw new NotFoundException("CONNECTION_NOT_FOUND");
+  async reconnect(connectionId: string, user: any): Promise<any> {
+    const connection = await this.findAuthorizedConnection(connectionId, user);
+    if (!connection.providerInstanceId) throw new NotFoundException("CONNECTION_NOT_FOUND");
     await this.evolutionProvider.reconnect(connection.providerInstanceId);
     await prisma.channelConnection.update({ where: { id: connectionId }, data: { status: "CONNECTING" } });
     return { success: true };
   }
 
-  async configureWebhook(connectionId: string, url: string): Promise<any> {
-    const connection = await prisma.channelConnection.findUnique({ where: { id: connectionId } });
-    if (!connection || !connection.providerInstanceId) throw new NotFoundException("CONNECTION_NOT_FOUND");
+  async configureWebhook(connectionId: string, url: string, user: any): Promise<any> {
+    const connection = await this.findAuthorizedConnection(connectionId, user);
+    if (!connection.providerInstanceId) throw new NotFoundException("CONNECTION_NOT_FOUND");
     await this.evolutionProvider.setWebhook({ instanceId: connection.providerInstanceId, url });
     return { success: true };
   }
 
-  async getHealth(connectionId: string): Promise<any> {
-    const connection = await prisma.channelConnection.findUnique({ where: { id: connectionId } });
-    if (!connection || !connection.providerInstanceId) throw new NotFoundException("CONNECTION_NOT_FOUND");
+  async getHealth(connectionId: string, user: any): Promise<any> {
+    const connection = await this.findAuthorizedConnection(connectionId, user);
+    if (!connection.providerInstanceId) throw new NotFoundException("CONNECTION_NOT_FOUND");
     const state = await this.evolutionProvider.getConnectionState(connection.providerInstanceId);
     return { isHealthy: state.status === "CONNECTED", status: state.status, lastConnectedAt: connection.lastConnectedAt };
   }
 
-  async sendMessage(connectionId: string, to: string, text: string): Promise<any> {
-    const connection = await prisma.channelConnection.findUnique({ where: { id: connectionId } });
-    if (!connection || !connection.providerInstanceId || connection.status !== "CONNECTED") throw new BadRequestException("CONNECTION_NOT_READY");
+  async sendMessage(connectionId: string, to: string, text: string, user: any): Promise<any> {
+    const connection = await this.findAuthorizedConnection(connectionId, user);
+    if (!connection.providerInstanceId || connection.status !== "CONNECTED") throw new BadRequestException("CONNECTION_NOT_READY");
     const result = await this.evolutionProvider.sendText({ instanceId: connection.providerInstanceId, phoneNumber: to, text });
     return result;
   }
 
-  async sendTemplate(connectionId: string, to: string, templateName: string, parameters: any[]): Promise<any> {
-    const connection = await prisma.channelConnection.findUnique({ where: { id: connectionId } });
-    if (!connection || !connection.providerInstanceId || connection.status !== "CONNECTED") throw new BadRequestException("CONNECTION_NOT_READY");
+  async sendTemplate(connectionId: string, to: string, templateName: string, parameters: any[], user: any): Promise<any> {
+    const connection = await this.findAuthorizedConnection(connectionId, user);
+    if (!connection.providerInstanceId || connection.status !== "CONNECTED") throw new BadRequestException("CONNECTION_NOT_READY");
     const result = await this.evolutionProvider.sendTemplate({ instanceId: connection.providerInstanceId, phoneNumber: to, templateName, parameters });
     return result;
   }
 
-  async broadcast(connectionId: string, contacts: string[], text: string): Promise<any> {
-    const connection = await prisma.channelConnection.findUnique({ where: { id: connectionId } });
-    if (!connection || !connection.providerInstanceId || connection.status !== "CONNECTED") throw new BadRequestException("CONNECTION_NOT_READY");
+  async broadcast(connectionId: string, contacts: string[], text: string, user: any): Promise<any> {
+    const connection = await this.findAuthorizedConnection(connectionId, user);
+    if (!connection.providerInstanceId || connection.status !== "CONNECTED") throw new BadRequestException("CONNECTION_NOT_READY");
     
     // Process broadcast asynchronously to respect rate limits
     this.processBroadcast(connection.providerInstanceId, contacts, text).catch(e => this.logger.error(`Broadcast failed: ${e.message}`));
@@ -127,9 +137,9 @@ export class WhatsAppService {
     }
   }
 
-  async getMedia(connectionId: string, messageId: string): Promise<any> {
-    const connection = await prisma.channelConnection.findUnique({ where: { id: connectionId } });
-    if (!connection || !connection.providerInstanceId) throw new NotFoundException("CONNECTION_NOT_FOUND");
+  async getMedia(connectionId: string, messageId: string, user: any): Promise<any> {
+    const connection = await this.findAuthorizedConnection(connectionId, user);
+    if (!connection.providerInstanceId) throw new NotFoundException("CONNECTION_NOT_FOUND");
     const buffer = await this.evolutionProvider.getMediaBuffer(connection.providerInstanceId, messageId);
     return buffer.toString("base64");
   }

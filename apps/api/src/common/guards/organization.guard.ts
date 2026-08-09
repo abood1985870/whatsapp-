@@ -6,7 +6,7 @@ export class OrganizationGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
     const user = (request as any).user;
-    const orgId = request.params.organizationId || request.body.organizationId || request.query.organizationId;
+    const orgId = request.params?.organizationId || request.body?.organizationId || request.query?.organizationId;
 
     if (!orgId) {
       return true;

@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Inbox, Users, BookOpen, Bot, BarChart3, MessageCircle,
-  Settings, LogOut, ChevronLeft, Wifi, WifiOff
+  Settings, LogOut, ChevronLeft, ShieldCheck
 } from "lucide-react";
 
 const navItems = [
@@ -17,13 +17,22 @@ const navItems = [
   { href: "/app/settings", label: "الإعدادات", icon: Settings },
 ];
 
+function isPlatformOwner(user: any) {
+  return (user?.memberships || []).some(
+    (membership: any) => membership.status === "ACTIVE" && membership.role?.name === "PLATFORM_SUPER_ADMIN"
+  );
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const platformOwner = isPlatformOwner(user);
+  const items = platformOwner
+    ? [{ href: "/app/platform", label: "مالك المنصة", icon: ShieldCheck }, ...navItems]
+    : navItems;
 
   return (
     <div className="min-h-screen bg-gray-50 flex" dir="rtl">
-      {/* Sidebar */}
       <aside className="w-64 bg-charcoal-900 text-white flex flex-col fixed h-full right-0 top-0 z-50">
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center gap-2">
@@ -35,7 +44,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {navItems.map((item) => {
+          {items.map((item) => {
             const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
             const Icon = item.icon;
             return (
@@ -68,7 +77,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 mr-64">
         {children}
       </main>

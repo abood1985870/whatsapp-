@@ -1,20 +1,23 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { MessageCircle, Plus, QrCode, RefreshCw, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, Plus, QrCode, Trash2, RefreshCw, Link as LinkIcon } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
+
+const pendingStatuses = ["PENDING", "QR_REQUIRED", "CONNECTING", "CREATING"];
 
 export default function WhatsAppConnectionsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [connections, setConnections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [newConnectionName, setNewConnectionName] = useState("");
   const [currentQr, setCurrentQr] = useState<string | null>(null);
+  const [qrError, setQrError] = useState<string | null>(null);
 
   const orgId = user?.memberships?.[0]?.organizationId;
 
@@ -23,7 +26,7 @@ export default function WhatsAppConnectionsPage() {
     try {
       setLoading(true);
       const res = await api.get(`/whatsapp/connections?organizationId=${orgId}`);
-      setConnections(res.data.data);
+      setConnections(res.data.data || []);
     } catch (error) {
       console.error("Failed to fetch connections", error);
     } finally {
@@ -32,13 +35,17 @@ export default function WhatsAppConnectionsPage() {
   };
 
   useEffect(() => {
+    if (!authLoading && !orgId) {
+      setLoading(false);
+      return;
+    }
     fetchConnections();
-  }, [orgId]);
+  }, [authLoading, orgId]);
 
   const handleAddConnection = async () => {
-    if (!newConnectionName.trim()) return;
+    if (!newConnectionName.trim() || !orgId) return;
     try {
-      await api.post("/whatsapp/connections", { organizationId: orgId, name: newConnectionName });
+      await api.post("/whatsapp/connections", { organizationId: orgId, name: newConnectionName.trim() });
       setIsAddModalOpen(false);
       setNewConnectionName("");
       fetchConnections();
@@ -48,18 +55,21 @@ export default function WhatsAppConnectionsPage() {
   };
 
   const handleViewQr = async (id: string) => {
+    setCurrentQr(null);
+    setQrError(null);
+    setIsQrModalOpen(true);
     try {
       const res = await api.get(`/whatsapp/connections/${id}/qr`);
       const qrCode = res.data.data.qrCode || res.data.data.qrcode;
-      if (qrCode) {
-        setCurrentQr(qrCode);
-        setIsQrModalOpen(true);
-      } else {
-        alert("رمز الاستجابة غير متاح حالياً. تأكد من حالة الاتصال.");
+      if (!qrCode) {
+        setQrError("رمز QR غير متاح حالياً. اضغط تحديث الحالة أو أنشئ اتصالاً جديداً.");
+        return;
       }
-    } catch (error) {
+      setCurrentQr(qrCode);
+    } catch (error: any) {
       console.error("Failed to fetch QR", error);
-      alert("حدث خطأ أثناء جلب رمز الاستجابة السريعة.");
+      const message = error?.response?.data?.error?.message;
+      setQrError(message || "تعذر جلب رمز QR الآن. جرّب تحديث الاتصال أو إنشاء اتصال جديد.");
     }
   };
 
@@ -73,12 +83,19 @@ export default function WhatsAppConnectionsPage() {
     }
   };
 
+  const statusLabel = (status: string) => {
+    if (status === "CONNECTED") return "متصل";
+    if (pendingStatuses.includes(status)) return "في الانتظار";
+    if (status === "ERROR") return "يحتاج إعادة إنشاء";
+    return "غير متصل";
+  };
+
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">اتصالات واتساب</h1>
-          <p className="text-gray-500 text-sm">إدارة الأرقام المرتبطة بالمنصة</p>
+          <p className="text-gray-500 text-sm">كل عميل يضيف رقمه ويمسح QR الخاص بحسابه فقط.</p>
         </div>
         <Button onClick={() => setIsAddModalOpen(true)} className="gap-2">
           <Plus className="w-4 h-4" />
@@ -89,11 +106,17 @@ export default function WhatsAppConnectionsPage() {
       <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-gray-500">جاري التحميل...</div>
+        ) : !orgId ? (
+          <div className="p-16 text-center text-gray-500 flex flex-col items-center">
+            <MessageCircle className="w-12 h-12 text-gray-300 mb-4" />
+            <p className="font-medium text-gray-900">لا توجد منظمة مرتبطة بالحساب</p>
+            <p className="text-sm mt-1">سجل الدخول بحساب عميل فعّال أو اطلب من مالك المنصة إنشاء حساب عميل لك.</p>
+          </div>
         ) : connections.length === 0 ? (
           <div className="p-16 text-center text-gray-500 flex flex-col items-center">
             <MessageCircle className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="font-medium text-gray-900">لا يوجد اتصالات حالياً</p>
-            <p className="text-sm mt-1">قم بإضافة رقم واتساب جديد للبدء في استقبال الرسائل.</p>
+            <p className="font-medium text-gray-900">لا توجد اتصالات حالياً</p>
+            <p className="text-sm mt-1">أضف رقم واتساب جديد ثم امسح رمز QR من تطبيق واتساب.</p>
           </div>
         ) : (
           <table className="w-full text-sm text-right">
@@ -107,44 +130,42 @@ export default function WhatsAppConnectionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {connections.map((conn) => (
-                <tr key={conn.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 font-medium">{conn.name}</td>
-                  <td className="px-6 py-4 text-gray-500" dir="ltr">{conn.phoneNumber || "-"}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                      conn.status === "CONNECTED" ? "bg-green-100 text-green-700" :
-                      ["PENDING", "QR_REQUIRED", "CONNECTING", "CREATING"].includes(conn.status) ? "bg-yellow-100 text-yellow-700" :
-                      "bg-gray-100 text-gray-700"
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${
-                        conn.status === "CONNECTED" ? "bg-green-500" :
-                        ["PENDING", "QR_REQUIRED", "CONNECTING", "CREATING"].includes(conn.status) ? "bg-yellow-500" :
-                        "bg-gray-500"
-                      }`}></span>
-                      {conn.status === "CONNECTED" ? "متصل" : ["PENDING", "QR_REQUIRED", "CONNECTING", "CREATING"].includes(conn.status) ? "في الانتظار" : "غير متصل"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-gray-500">
-                    {new Date(conn.createdAt).toLocaleDateString("ar-SA")}
-                  </td>
-                  <td className="px-6 py-4 text-left">
-                    <div className="flex items-center justify-end gap-2">
-                      {conn.status !== "CONNECTED" && (
-                        <Button variant="outline" size="sm" onClick={() => handleViewQr(conn.id)} title="مسح رمز QR">
-                          <QrCode className="w-4 h-4" />
+              {connections.map((conn) => {
+                const connected = conn.status === "CONNECTED";
+                const pending = pendingStatuses.includes(conn.status);
+                return (
+                  <tr key={conn.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-6 py-4 font-medium">{conn.name}</td>
+                    <td className="px-6 py-4 text-gray-500" dir="ltr">{conn.phoneNumber || "-"}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                        connected ? "bg-green-100 text-green-700" : pending ? "bg-yellow-100 text-yellow-700" : "bg-red-50 text-red-700"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-500" : pending ? "bg-yellow-500" : "bg-red-500"}`}></span>
+                        {statusLabel(conn.status)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-gray-500">
+                      {new Date(conn.createdAt).toLocaleDateString("ar-SA")}
+                    </td>
+                    <td className="px-6 py-4 text-left">
+                      <div className="flex items-center justify-end gap-2">
+                        {!connected && conn.providerInstanceId && (
+                          <Button variant="outline" size="sm" onClick={() => handleViewQr(conn.id)} title="مسح رمز QR">
+                            <QrCode className="w-4 h-4" />
+                          </Button>
+                        )}
+                        <Button variant="outline" size="sm" onClick={() => fetchConnections()} title="تحديث الحالة">
+                          <RefreshCw className="w-4 h-4" />
                         </Button>
-                      )}
-                      <Button variant="outline" size="sm" onClick={() => fetchConnections()} title="تحديث الحالة">
-                        <RefreshCw className="w-4 h-4" />
-                      </Button>
-                      <Button variant="destructive" size="sm" onClick={() => handleDelete(conn.id)} title="حذف">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        <Button variant="destructive" size="sm" onClick={() => handleDelete(conn.id)} title="حذف">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -153,11 +174,11 @@ export default function WhatsAppConnectionsPage() {
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="إضافة رقم واتساب جديد">
         <div className="space-y-4 pt-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">اسم الاتصال (مثال: رقم الدعم الرئيسي)</label>
-            <Input 
-              value={newConnectionName} 
-              onChange={(e) => setNewConnectionName(e.target.value)} 
-              placeholder="أدخل اسماً يميز هذا الرقم"
+            <label className="block text-sm font-medium text-gray-700 mb-1">اسم الاتصال</label>
+            <Input
+              value={newConnectionName}
+              onChange={(e) => setNewConnectionName(e.target.value)}
+              placeholder="مثال: رقم الدعم الرئيسي"
             />
           </div>
           <Button className="w-full" onClick={handleAddConnection} disabled={!newConnectionName.trim()}>
@@ -169,10 +190,14 @@ export default function WhatsAppConnectionsPage() {
       <Modal isOpen={isQrModalOpen} onClose={() => setIsQrModalOpen(false)} title="ربط واتساب">
         <div className="flex flex-col items-center justify-center p-4 space-y-4">
           <p className="text-sm text-gray-500 text-center mb-2">
-            افتح تطبيق واتساب على هاتفك، ثم اذهب إلى "الأجهزة المرتبطة" وامسح الرمز أدناه:
+            افتح واتساب في الجوال، ثم الأجهزة المرتبطة، وبعدها امسح الرمز.
           </p>
           {currentQr ? (
             <img src={currentQr} alt="WhatsApp QR Code" className="w-64 h-64 border rounded-xl shadow-sm" />
+          ) : qrError ? (
+            <div className="w-full rounded-xl border border-red-100 bg-red-50 p-4 text-center text-sm text-red-700">
+              {qrError}
+            </div>
           ) : (
             <div className="w-64 h-64 border rounded-xl flex items-center justify-center bg-gray-50">
               <RefreshCw className="w-8 h-8 text-gray-300 animate-spin" />
