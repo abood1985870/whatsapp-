@@ -96,6 +96,9 @@ importers:
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
+      body-parser:
+        specifier: ^2.2.0
+        version: 2.3.0
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1

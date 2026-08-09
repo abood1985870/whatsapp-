@@ -20,5 +20,5 @@ export interface WhatsAppProvider {
   sendMedia(input: SendMediaInput): Promise<ProviderMessageResult>; 
   setWebhook(input: SetWebhookInput): Promise<void>; 
   getMediaBuffer(instanceId: string, messageId: string): Promise<Buffer>;
-  validateWebhook(input: unknown, headers: any): Promise<ValidatedWebhookEvent | null>; 
+  validateWebhook(input: unknown, headers: any, query?: any): Promise<ValidatedWebhookEvent | null>; 
 }

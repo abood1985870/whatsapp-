@@ -73,6 +73,7 @@ export class EvolutionProvider implements WhatsAppProvider {
       url: input.url,
       webhookByEvents: false,
       webhookBase64: false,
+      headers: config.EVOLUTION_WEBHOOK_SECRET ? { "x-evolution-secret": config.EVOLUTION_WEBHOOK_SECRET } : {},
       events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"]
     }, { headers: { apikey: this.apiKey } }));
   }
@@ -82,9 +83,9 @@ export class EvolutionProvider implements WhatsAppProvider {
     return Buffer.from("mock-media-buffer", "utf-8");
   }
 
-  async validateWebhook(input: unknown, headers: any): Promise<ValidatedWebhookEvent | null> {
+  async validateWebhook(input: unknown, headers: any, query?: any): Promise<ValidatedWebhookEvent | null> {
     try { 
-      if (!this.isValidSignature(input, headers)) {
+      if (!this.isValidSignature(input, headers, query)) {
         this.logger.warn("Rejected Evolution webhook with invalid signature");
         return null;
       }
@@ -107,8 +108,14 @@ export class EvolutionProvider implements WhatsAppProvider {
     }
   }
 
-  private isValidSignature(input: unknown, headers: any): boolean {
+  private isValidSignature(input: unknown, headers: any, query?: any): boolean {
     if (!config.EVOLUTION_WEBHOOK_SECRET) return true;
+
+    const webhookSecret = String(headers?.["x-evolution-secret"] || "");
+    if (webhookSecret && this.safeCompare(webhookSecret, config.EVOLUTION_WEBHOOK_SECRET)) return true;
+
+    const querySecret = String(query?.secret || query?.token || "");
+    if (querySecret && this.safeCompare(querySecret, config.EVOLUTION_WEBHOOK_SECRET)) return true;
 
     const provided = String(
       headers?.["x-evolution-signature"] ||
@@ -126,5 +133,11 @@ export class EvolutionProvider implements WhatsAppProvider {
     const providedBuffer = Buffer.from(provided, "hex");
     const expectedBuffer = Buffer.from(expected, "hex");
     return providedBuffer.length === expectedBuffer.length && timingSafeEqual(providedBuffer, expectedBuffer);
+  }
+
+  private safeCompare(a: string, b: string): boolean {
+    const aBuffer = Buffer.from(a);
+    const bBuffer = Buffer.from(b);
+    return aBuffer.length === bBuffer.length && timingSafeEqual(aBuffer, bBuffer);
   }
 }

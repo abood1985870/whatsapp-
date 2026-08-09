@@ -9,8 +9,8 @@ export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
   constructor(private readonly evolutionProvider: EvolutionProvider) {}
   
-  async processEvolutionWebhook(payload: any, headers: any): Promise<any> {
-    const event = await this.evolutionProvider.validateWebhook(payload, headers);
+  async processEvolutionWebhook(payload: any, headers: any, query?: any): Promise<any> {
+    const event = await this.evolutionProvider.validateWebhook(payload, headers, query);
     if (!event) { 
       // It might be a status update that validateWebhook doesn't parse fully, 
       // but let's try to extract status update from raw payload

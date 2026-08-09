@@ -5,7 +5,7 @@ import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
-import { Plus, QrCode, Trash2, RefreshCw, Link as LinkIcon } from "lucide-react";
+import { MessageCircle, Plus, QrCode, Trash2, RefreshCw, Link as LinkIcon } from "lucide-react";
 
 export default function WhatsAppConnectionsPage() {
   const { user } = useAuth();
@@ -50,8 +50,9 @@ export default function WhatsAppConnectionsPage() {
   const handleViewQr = async (id: string) => {
     try {
       const res = await api.get(`/whatsapp/connections/${id}/qr`);
-      if (res.data.data.qrcode) {
-        setCurrentQr(res.data.data.qrcode);
+      const qrCode = res.data.data.qrCode || res.data.data.qrcode;
+      if (qrCode) {
+        setCurrentQr(qrCode);
         setIsQrModalOpen(true);
       } else {
         alert("رمز الاستجابة غير متاح حالياً. تأكد من حالة الاتصال.");
@@ -113,15 +114,15 @@ export default function WhatsAppConnectionsPage() {
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
                       conn.status === "CONNECTED" ? "bg-green-100 text-green-700" :
-                      conn.status === "PENDING" ? "bg-yellow-100 text-yellow-700" :
+                      ["PENDING", "QR_REQUIRED", "CONNECTING", "CREATING"].includes(conn.status) ? "bg-yellow-100 text-yellow-700" :
                       "bg-gray-100 text-gray-700"
                     }`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${
                         conn.status === "CONNECTED" ? "bg-green-500" :
-                        conn.status === "PENDING" ? "bg-yellow-500" :
+                        ["PENDING", "QR_REQUIRED", "CONNECTING", "CREATING"].includes(conn.status) ? "bg-yellow-500" :
                         "bg-gray-500"
                       }`}></span>
-                      {conn.status === "CONNECTED" ? "متصل" : conn.status === "PENDING" ? "في الانتظار" : "غير متصل"}
+                      {conn.status === "CONNECTED" ? "متصل" : ["PENDING", "QR_REQUIRED", "CONNECTING", "CREATING"].includes(conn.status) ? "في الانتظار" : "غير متصل"}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-gray-500">
@@ -185,6 +186,3 @@ export default function WhatsAppConnectionsPage() {
     </div>
   );
 }
-
-// Need to import MessageCircle for the empty state
-import { MessageCircle } from "lucide-react";

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Headers, Logger } from "@nestjs/common";
+import { Controller, Post, Body, Headers, Logger, Query } from "@nestjs/common";
 import { ApiTags, ApiOperation } from "@nestjs/swagger";
 import { WebhooksService } from "./webhooks.service";
 
@@ -7,5 +7,5 @@ import { WebhooksService } from "./webhooks.service";
 export class WebhooksController {
   private readonly logger = new Logger(WebhooksController.name);
   constructor(private readonly webhooksService: WebhooksService) {}
-  @Post("evolution") @ApiOperation({ summary: "Receive Evolution API webhook" }) async evolutionWebhook(@Body() payload: any, @Headers() headers: any) { this.logger.log(`Received webhook: ${payload?.event}`); return this.webhooksService.processEvolutionWebhook(payload, headers); }
+  @Post("evolution") @ApiOperation({ summary: "Receive Evolution API webhook" }) async evolutionWebhook(@Body() payload: any, @Headers() headers: any, @Query() query: any) { this.logger.log(`Received webhook: ${payload?.event}`); return this.webhooksService.processEvolutionWebhook(payload, headers, query); }
 }
