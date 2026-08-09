@@ -21,25 +21,27 @@ interface Conversation {
 }
 
 export default function InboxPage() {
-  const { user } = useAuth();
+  const { user, token, loading: authLoading } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [orgId, setOrgId] = useState("");
 
-  const { socket, isConnected } = useSocket();
+  const { socket, isConnected } = useSocket({ token, enabled: !!orgId });
 
   useEffect(() => {
     const membership = user?.memberships?.[0];
     if (membership) {
       setOrgId(membership.organizationId);
       loadConversations(membership.organizationId);
+      return;
     }
-  }, [user]);
+    if (!authLoading) setLoading(false);
+  }, [authLoading, user]);
 
   useEffect(() => {
-    if (!socket || !isConnected) return;
+    if (!socket || !isConnected || !orgId) return;
 
     const handleNewConversation = (newConv: Conversation) => {
       setConversations((prev) => [newConv, ...prev.filter(c => c.id !== newConv.id)]);
@@ -71,7 +73,7 @@ export default function InboxPage() {
       socket.off("conversation:updated", handleUpdateConversation);
       socket.off("message:new", handleNewMessage);
     };
-  }, [socket, isConnected]);
+  }, [socket, isConnected, orgId]);
 
   const loadConversations = async (organizationId: string) => {
     try {
@@ -149,6 +151,11 @@ export default function InboxPage() {
         <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto">
           {loading ? (
             <div className="p-8 text-center text-gray-400">جاري التحميل...</div>
+          ) : !orgId ? (
+            <div className="p-8 text-center">
+              <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">لا توجد منظمة مرتبطة بالحساب</p>
+            </div>
           ) : filtered.length === 0 ? (
             <div className="p-8 text-center">
               <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />

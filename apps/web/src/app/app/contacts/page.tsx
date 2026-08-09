@@ -7,7 +7,7 @@ import { Users, Search, Download, Upload } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 export default function ContactsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -28,11 +28,15 @@ export default function ContactsPage() {
   };
 
   useEffect(() => {
+    if (!authLoading && !orgId) {
+      setLoading(false);
+      return;
+    }
     const delayDebounceFn = setTimeout(() => {
       fetchContacts();
     }, 500);
     return () => clearTimeout(delayDebounceFn);
-  }, [orgId, search]);
+  }, [authLoading, orgId, search]);
 
   const handleExport = async () => {
     if (!orgId) return;

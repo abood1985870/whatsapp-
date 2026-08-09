@@ -27,7 +27,7 @@ function WeeklyBarChart({ title, data, barClass }: { title: string; data: { labe
 }
 
 export default function AnalyticsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
@@ -35,6 +35,10 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     const fetchDashboard = async () => {
+      if (!authLoading && !orgId) {
+        setLoading(false);
+        return;
+      }
       if (!orgId) return;
       try {
         setLoading(true);
@@ -47,7 +51,7 @@ export default function AnalyticsPage() {
       }
     };
     fetchDashboard();
-  }, [orgId]);
+  }, [authLoading, orgId]);
 
   return (
     <div className="p-8">

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { BookOpen, Plus, FileText, HelpCircle } from "lucide-react";
 
 export default function KnowledgePage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<"bases" | "faqs">("bases");
   const [bases, setBases] = useState<any[]>([]);
   const [faqs, setFaqs] = useState<any[]>([]);
@@ -46,8 +46,12 @@ export default function KnowledgePage() {
   };
 
   useEffect(() => {
+    if (!authLoading && !orgId) {
+      setLoading(false);
+      return;
+    }
     fetchData();
-  }, [orgId, activeTab]);
+  }, [authLoading, orgId, activeTab]);
 
   const handleAddBase = async () => {
     if (!newBase.name.trim()) return;

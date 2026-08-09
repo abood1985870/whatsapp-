@@ -6,17 +6,21 @@ import { useAuth } from "./useAuth";
 
 const REALTIME_URL = process.env.NEXT_PUBLIC_REALTIME_URL || "http://localhost:3002";
 
-export function useSocket() {
-  const { token, user } = useAuth();
+export function useSocket(options?: { token?: string | null; enabled?: boolean }) {
+  const fallbackAuth = useAuth();
+  const token = options?.token ?? fallbackAuth.token;
+  const enabled = options?.enabled ?? true;
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    if (!token || !user) return;
+    if (!token || !enabled) return;
 
     const socket = io(REALTIME_URL, {
       auth: { token },
-      transports: ["websocket"]
+      reconnectionAttempts: 3,
+      timeout: 5000,
+      transports: ["websocket"],
     });
 
     socket.on("connect", () => {
@@ -34,7 +38,7 @@ export function useSocket() {
     return () => {
       socket.disconnect();
     };
-  }, [token, user]);
+  }, [token, enabled]);
 
   const joinConversation = (conversationId: string) => {
     if (socketRef.current?.connected) {

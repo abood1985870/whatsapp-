@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Bot, Plus, Settings, Play, Send, UserCheck } from "lucide-react";
 
 export default function AiAgentsPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -40,8 +40,12 @@ export default function AiAgentsPage() {
   };
 
   useEffect(() => {
+    if (!authLoading && !orgId) {
+      setLoading(false);
+      return;
+    }
     fetchAgents();
-  }, [orgId]);
+  }, [authLoading, orgId]);
 
   const handleAddAgent = async () => {
     if (!newAgentData.name.trim()) return;

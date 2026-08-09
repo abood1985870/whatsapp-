@@ -17,8 +17,11 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
-      window.location.href = "/app/inbox";
+      const data = await login(email, password);
+      const isPlatformOwner = (data.memberships || []).some(
+        (membership: any) => membership.status === "ACTIVE" && membership.role?.name === "PLATFORM_SUPER_ADMIN"
+      );
+      window.location.href = isPlatformOwner ? "/app/platform" : "/app/inbox";
     } catch (err: any) {
       setError(err.response?.data?.error?.message || "خطأ في تسجيل الدخول");
     } finally {
