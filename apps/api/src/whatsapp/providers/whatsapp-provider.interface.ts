@@ -9,6 +9,7 @@ export interface ProviderMessageResult { messageId: string; status: string; }
 export interface ValidatedWebhookEvent {
   eventType: string;
   phoneNumber?: string;
+  pushName?: string;
   message?: { id: string; text?: string; type: string; timestamp: number };
   instanceId: string;
   connectionState?: ConnectionState;

@@ -69,13 +69,18 @@ export class EvolutionProvider implements WhatsAppProvider {
   }
 
   async setWebhook(input: SetWebhookInput): Promise<void> {
+    const webhookUrl = config.EVOLUTION_WEBHOOK_SECRET
+      ? this.appendSecretToWebhookUrl(input.url, config.EVOLUTION_WEBHOOK_SECRET)
+      : input.url;
+
     await firstValueFrom(this.httpService.post(`${this.baseUrl}/webhook/set/${input.instanceId}`, {
-      enabled: true,
-      url: input.url,
-      webhookByEvents: false,
-      webhookBase64: false,
-      headers: config.EVOLUTION_WEBHOOK_SECRET ? { "x-evolution-secret": config.EVOLUTION_WEBHOOK_SECRET } : {},
-      events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"]
+      webhook: {
+        enabled: true,
+        url: webhookUrl,
+        webhookByEvents: false,
+        webhookBase64: false,
+        events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"]
+      }
     }, { headers: { apikey: this.apiKey } }));
   }
 
@@ -95,10 +100,12 @@ export class EvolutionProvider implements WhatsAppProvider {
       const connectionEvent = this.parseConnectionUpdate(payload);
       if (connectionEvent) return connectionEvent;
 
-      if (!payload.data?.key?.remoteJid) return null; 
+      const phoneNumber = this.extractPhoneNumber(payload);
+      if (!phoneNumber) return null; 
       return { 
         eventType: payload.event, 
-        phoneNumber: payload.data.key.remoteJid.replace(/@.*/, ""), 
+        phoneNumber,
+        pushName: payload.data?.pushName || payload.pushName,
         message: { 
           id: payload.data.key.id, 
           text: payload.data.message?.conversation || payload.data.message?.extendedTextMessage?.text, 
@@ -110,6 +117,20 @@ export class EvolutionProvider implements WhatsAppProvider {
     } catch { 
       return null; 
     }
+  }
+
+  private extractPhoneNumber(payload: any): string | undefined {
+    const key = payload?.data?.key;
+    if (!key) return undefined;
+
+    const remoteJid = String(key.remoteJid || "");
+    const remoteJidAlt = String(key.remoteJidAlt || "");
+    const preferredJid = remoteJidAlt.includes("@s.whatsapp.net") || remoteJid.endsWith("@lid")
+      ? remoteJidAlt
+      : remoteJid;
+
+    const phoneNumber = preferredJid.replace(/@.*/, "");
+    return phoneNumber || undefined;
   }
 
   private isValidSignature(input: unknown, headers: any, query?: any): boolean {
@@ -172,5 +193,11 @@ export class EvolutionProvider implements WhatsAppProvider {
     if (normalized === "close" || normalized === "closed") return "DISCONNECTED";
     if (normalized === "refused") return "ERROR";
     return status || "UNKNOWN";
+  }
+
+  private appendSecretToWebhookUrl(url: string, secret: string): string {
+    const parsed = new URL(url);
+    parsed.searchParams.set("secret", secret);
+    return parsed.toString();
   }
 }

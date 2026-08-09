@@ -73,7 +73,9 @@ export class WebhooksService {
     const normalizedPhone = normalizePhone(event.phoneNumber);
     let contact = await prisma.contact.findUnique({ where: { organizationId_normalizedPhone: { organizationId: connection.organizationId, normalizedPhone } } });
     if (!contact) { 
-      contact = await prisma.contact.create({ data: { organizationId: connection.organizationId, primaryPhone: event.phoneNumber, normalizedPhone, source: "WHATSAPP", firstSeenAt: new Date() } }); 
+      contact = await prisma.contact.create({ data: { organizationId: connection.organizationId, primaryPhone: event.phoneNumber, normalizedPhone, name: event.pushName, source: "WHATSAPP", firstSeenAt: new Date() } }); 
+    } else if (!contact.name && event.pushName) {
+      contact = await prisma.contact.update({ where: { id: contact.id }, data: { name: event.pushName } });
     }
     await prisma.contact.update({ where: { id: contact.id }, data: { lastSeenAt: new Date() } });
 
