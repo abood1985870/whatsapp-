@@ -27,7 +27,8 @@ export class EvolutionProvider implements WhatsAppProvider {
   async getConnectionState(instanceId: string): Promise<ConnectionState> {
     try { 
       const response = await firstValueFrom(this.httpService.get(`${this.baseUrl}/instance/connectionState/${instanceId}`, { headers: { apikey: this.apiKey } })); 
-      return { status: response.data.instance.state, phoneNumber: response.data.instance.ownerJid }; 
+      const rawStatus = response.data.instance?.state;
+      return { status: this.normalizeConnectionStatus(rawStatus), phoneNumber: response.data.instance?.ownerJid, rawStatus };
     } catch (error: any) { 
       return { status: "ERROR", error: error.message }; 
     }
@@ -91,6 +92,9 @@ export class EvolutionProvider implements WhatsAppProvider {
       }
 
       const payload = input as any; 
+      const connectionEvent = this.parseConnectionUpdate(payload);
+      if (connectionEvent) return connectionEvent;
+
       if (!payload.data?.key?.remoteJid) return null; 
       return { 
         eventType: payload.event, 
@@ -139,5 +143,34 @@ export class EvolutionProvider implements WhatsAppProvider {
     const aBuffer = Buffer.from(a);
     const bBuffer = Buffer.from(b);
     return aBuffer.length === bBuffer.length && timingSafeEqual(aBuffer, bBuffer);
+  }
+
+  private parseConnectionUpdate(payload: any): ValidatedWebhookEvent | null {
+    const eventName = String(payload?.event || "").toUpperCase().replace(/\./g, "_");
+    if (eventName !== "CONNECTION_UPDATE") return null;
+
+    const rawStatus = payload?.data?.state || payload?.data?.status || payload?.data?.connection || payload?.instance?.state;
+    const instanceId = payload?.instance || payload?.data?.instanceName || payload?.instanceName;
+    if (!instanceId || !rawStatus) return null;
+
+    const phoneNumber = payload?.data?.ownerJid || payload?.data?.phoneNumber || payload?.data?.number;
+    return {
+      eventType: "CONNECTION_UPDATE",
+      instanceId,
+      connectionState: {
+        status: this.normalizeConnectionStatus(rawStatus),
+        rawStatus,
+        phoneNumber: phoneNumber ? String(phoneNumber).replace(/@.*/, "") : undefined,
+      },
+    };
+  }
+
+  private normalizeConnectionStatus(status: string | undefined): string {
+    const normalized = String(status || "").toLowerCase();
+    if (normalized === "open") return "CONNECTED";
+    if (normalized === "connecting") return "CONNECTING";
+    if (normalized === "close" || normalized === "closed") return "DISCONNECTED";
+    if (normalized === "refused") return "ERROR";
+    return status || "UNKNOWN";
   }
 }

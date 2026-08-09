@@ -65,9 +65,15 @@ export class WhatsAppService {
     const connection = await this.findAuthorizedConnection(connectionId, user);
     if (!connection.providerInstanceId) return { status: connection.status };
     
-    const state = await this.evolutionProvider.getConnectionState(connection.providerInstanceId); 
-    if (state.status === "CONNECTED" && connection.status !== "CONNECTED") { 
-      await prisma.channelConnection.update({ where: { id: connectionId }, data: { status: "CONNECTED", lastConnectedAt: new Date(), phoneNumber: state.phoneNumber } }); 
+    const state = await this.evolutionProvider.getConnectionState(connection.providerInstanceId);
+    if (state.status !== connection.status) {
+      const data: any = { status: state.status };
+      if (state.status === "CONNECTED") {
+        data.lastConnectedAt = new Date();
+        if (state.phoneNumber) data.phoneNumber = state.phoneNumber;
+      }
+      if (state.status === "DISCONNECTED") data.lastDisconnectedAt = new Date();
+      await prisma.channelConnection.update({ where: { id: connectionId }, data });
     }
     return { status: state.status, phoneNumber: state.phoneNumber, error: state.error };
   }

@@ -43,10 +43,30 @@ export class WebhooksService {
       } 
     });
     
-    if (event.eventType === "messages.upsert" && event.message?.text) { 
+    if (event.eventType === "CONNECTION_UPDATE" && event.connectionState) {
+      await this.handleConnectionUpdate(connection, event.connectionState);
+    }
+
+    if ((event.eventType === "messages.upsert" || event.eventType === "MESSAGES_UPSERT") && event.message?.text) { 
       await this.handleIncomingMessage(connection, event); 
     }
     return { received: true, processed: true };
+  }
+
+  private async handleConnectionUpdate(connection: any, state: any): Promise<void> {
+    const data: any = { status: state.status };
+    if (state.status === "CONNECTED") {
+      data.lastConnectedAt = new Date();
+      if (state.phoneNumber) data.phoneNumber = state.phoneNumber;
+    }
+    if (state.status === "DISCONNECTED") data.lastDisconnectedAt = new Date();
+
+    await prisma.channelConnection.update({ where: { id: connection.id }, data });
+    emitToOrganization(connection.organizationId, "whatsapp:connection", {
+      id: connection.id,
+      status: state.status,
+      phoneNumber: state.phoneNumber,
+    });
   }
   
   private async handleIncomingMessage(connection: any, event: any): Promise<any> {
