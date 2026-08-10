@@ -18,6 +18,7 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().optional(),
   DATABASE_URL: z.string().startsWith("postgresql://"),
   REDIS_URL: z.string().default("redis://localhost:6379"),
+  REDIS_DISABLED: z.coerce.boolean().default(false),
   SUPABASE_URL: z.string().url().optional(),
   SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
   SUPABASE_SECRET_KEY: z.string().optional(),

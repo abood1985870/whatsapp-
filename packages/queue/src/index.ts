@@ -3,20 +3,30 @@ import { Emitter } from "@socket.io/redis-emitter";
 import { config } from "@qanoai/config";
 import IORedis from "ioredis";
 
-const redisConnection = new IORedis(config.REDIS_URL, {
-  maxRetriesPerRequest: null,
-});
+const redisDisabled = config.REDIS_DISABLED;
+
+const redisConnection: any = redisDisabled
+  ? {
+      duplicate: () => redisConnection,
+      ping: async () => "DISABLED",
+      quit: async () => undefined,
+    }
+  : new IORedis(config.REDIS_URL, {
+      maxRetriesPerRequest: null,
+    });
 
 // Publishes into the same Redis channels the realtime server's
 // @socket.io/redis-adapter subscribes to, so API/worker processes can push
 // live events without running their own Socket.IO server.
-const realtimeEmitter = new Emitter(redisConnection.duplicate());
+const realtimeEmitter: any = redisDisabled ? null : new Emitter(redisConnection.duplicate());
 
 export function emitToOrganization(organizationId: string, event: string, data: any): void {
+  if (redisDisabled) return;
   realtimeEmitter.to(`org:${organizationId}`).emit(event, data);
 }
 
 export function emitToConversation(conversationId: string, event: string, data: any): void {
+  if (redisDisabled) return;
   realtimeEmitter.to(`conv:${conversationId}`).emit(event, data);
 }
 
@@ -35,6 +45,14 @@ export const QUEUE_NAMES = {
 } as const;
 
 export function createQueue(name: string): Queue {
+  if (redisDisabled) {
+    return {
+      add: async () => {
+        throw new Error("Redis queues are disabled");
+      },
+    } as unknown as Queue;
+  }
+
   return new Queue(name, {
     prefix: config.QUEUE_PREFIX || "qanoai",
     connection: redisConnection,
@@ -54,6 +72,10 @@ export function createWorker(
   name: string,
   processor: (job: Job) => Promise<void>
 ): Worker {
+  if (redisDisabled) {
+    throw new Error(`Redis workers are disabled: ${name}`);
+  }
+
   return new Worker(name, processor, {
     prefix: config.QUEUE_PREFIX || "qanoai",
     connection: redisConnection,

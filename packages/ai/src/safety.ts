@@ -94,6 +94,10 @@ function getRateLimitRedis(): IORedis {
 
 // Fixed-window rate limit: N AI responses per organization per minute.
 export async function checkRateLimit(organizationId: string, limit: number = 30): Promise<boolean> {
+  if (config.REDIS_DISABLED) {
+    return true;
+  }
+
   const redis = getRateLimitRedis();
   const windowKey = `ai:ratelimit:${organizationId}:${Math.floor(Date.now() / 60000)}`;
   const count = await redis.incr(windowKey);

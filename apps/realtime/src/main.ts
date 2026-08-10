@@ -12,9 +12,13 @@ const io = new Server(httpServer, {
 });
 
 // Setup Redis Adapter for multi-node / microservices broadcasting
-const pubClient = new IORedis(config.REDIS_URL, { maxRetriesPerRequest: null });
-const subClient = pubClient.duplicate();
-io.adapter(createAdapter(pubClient, subClient));
+const pubClient = config.REDIS_DISABLED ? null : new IORedis(config.REDIS_URL, { maxRetriesPerRequest: null });
+const subClient = pubClient ? pubClient.duplicate() : null;
+if (pubClient && subClient) {
+  io.adapter(createAdapter(pubClient, subClient));
+} else {
+  console.log("Realtime Redis adapter disabled by REDIS_DISABLED=true");
+}
 
 interface TokenPayload {
   sub?: string;
@@ -140,8 +144,8 @@ httpServer.listen(port, () => {
 const shutdown = () => {
   console.log("Shutting down Realtime server...");
   io.close(() => {
-    pubClient.quit();
-    subClient.quit();
+    pubClient?.quit();
+    subClient?.quit();
     console.log("Realtime server closed cleanly");
     process.exit(0);
   });
