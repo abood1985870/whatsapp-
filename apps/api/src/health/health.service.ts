@@ -29,7 +29,7 @@ export class HealthService {
       checks.redis = "disconnected";
     }
 
-    const ready = checks.database === "connected" && checks.redis === "connected";
+    const ready = checks.database === "connected";
     return {
       status: ready ? "ready" : "not_ready",
       ...checks,

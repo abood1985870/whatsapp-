@@ -3,7 +3,12 @@ import { prisma } from "@qanoai/database";
 import { queues, emitToOrganization } from "@qanoai/queue";
 import { EvolutionProvider } from "../whatsapp/providers/evolution.provider";
 import { normalizePhone, generateCorrelationId } from "@qanoai/shared";
-import { findPendingEscalationForSupportPhone, learnFromSupportReply } from "@qanoai/ai";
+import {
+  findPendingEscalationForSupportPhone,
+  learnFromSupportReply,
+  markPendingSupportEscalation,
+  processAgentTurn
+} from "@qanoai/ai";
 
 @Injectable()
 export class WebhooksService {
@@ -63,7 +68,7 @@ export class WebhooksService {
     if (state.status === "DISCONNECTED") data.lastDisconnectedAt = new Date();
 
     await prisma.channelConnection.update({ where: { id: connection.id }, data });
-    emitToOrganization(connection.organizationId, "whatsapp:connection", {
+    this.safeEmitToOrganization(connection.organizationId, "whatsapp:connection", {
       id: connection.id,
       status: state.status,
       phoneNumber: state.phoneNumber,
@@ -106,7 +111,7 @@ export class WebhooksService {
     this.logger.log(`Processed incoming message from ${event.phoneNumber} in conversation ${conversation.id}`);
 
     const contactPayload = { name: contact.name, primaryPhone: contact.primaryPhone, avatarUrl: contact.avatarUrl };
-    emitToOrganization(connection.organizationId, isNewConversation ? "conversation:new" : "conversation:updated", {
+    this.safeEmitToOrganization(connection.organizationId, isNewConversation ? "conversation:new" : "conversation:updated", {
       id: conversation.id,
       contact: contactPayload,
       status: conversation.status,
@@ -115,7 +120,7 @@ export class WebhooksService {
       lastMessageAt: conversation.lastMessageAt,
       assignedMembership: null
     });
-    emitToOrganization(connection.organizationId, "message:new", {
+    this.safeEmitToOrganization(connection.organizationId, "message:new", {
       id: message.id,
       conversationId: conversation.id,
       text: message.text,
@@ -129,19 +134,225 @@ export class WebhooksService {
     if (!["HUMAN_ONLY", "PAUSED"].includes(conversation.mode)) {
       const agent = await prisma.aiAgent.findFirst({ where: { organizationId: connection.organizationId, status: "ACTIVE" } });
       if (agent) {
-        await queues.aiResponse.add("process-ai-response", {
-          organizationId: connection.organizationId,
-          conversationId: conversation.id,
-          agentId: agent.id,
-          messageId: message.id,
-          content: event.message.text,
-        }, {
-          delay: 5000,
-        });
+        try {
+          await queues.aiResponse.add("process-ai-response", {
+            organizationId: connection.organizationId,
+            conversationId: conversation.id,
+            agentId: agent.id,
+            messageId: message.id,
+            content: event.message.text,
+          }, {
+            delay: 5000,
+          });
+        } catch (error: any) {
+          this.logger.warn(`AI queue unavailable; processing inline for conversation ${conversation.id}: ${error.message}`);
+          await this.processAiInline({
+            organizationId: connection.organizationId,
+            conversationId: conversation.id,
+            agentId: agent.id,
+            messageId: message.id,
+            content: event.message.text
+          });
+        }
       } else {
         this.logger.warn(`No active AI agent for organization ${connection.organizationId}, skipping auto-reply`);
       }
     }
+  }
+
+  private async processAiInline(input: {
+    organizationId: string;
+    conversationId: string;
+    agentId: string;
+    messageId: string;
+    content: string;
+  }): Promise<void> {
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: input.conversationId },
+      include: { contact: true, connection: true }
+    });
+    if (!conversation) return;
+
+    const latestInbound = await prisma.message.findFirst({
+      where: {
+        conversationId: input.conversationId,
+        direction: "INBOUND",
+        senderType: "CUSTOMER",
+        deletedAt: null
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true }
+    });
+    if (latestInbound && latestInbound.id !== input.messageId) {
+      this.logger.log(`Skipping stale inline AI response for conversation ${input.conversationId}`);
+      return;
+    }
+
+    const startedAt = Date.now();
+    const response = await processAgentTurn({
+      organizationId: input.organizationId,
+      conversationId: input.conversationId,
+      agentId: input.agentId,
+      message: input.content
+    });
+    const latencyMs = Date.now() - startedAt;
+
+    if (response.decision === "REPLY" && response.replyMessage) {
+      const aiMessage = await this.createAndSendAiMessage({
+        organizationId: input.organizationId,
+        conversation,
+        text: response.replyMessage
+      });
+
+      await prisma.aiRun.create({
+        data: {
+          organizationId: input.organizationId,
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+          status: "COMPLETED",
+          decision: response.decision,
+          confidence: response.confidence,
+          input: input.content,
+          output: response.replyMessage,
+          citations: response.citations,
+          tokenUsage: response.tokenUsage !== undefined ? { total: response.tokenUsage } : undefined,
+          costUsd: response.costUsd,
+          latencyMs,
+          completedAt: new Date()
+        }
+      });
+
+      this.safeEmitToOrganization(input.organizationId, "message:new", this.messagePayload(aiMessage));
+      return;
+    }
+
+    if (response.decision === "HANDOFF") {
+      const agent = await prisma.aiAgent.findUnique({ where: { id: input.agentId } });
+      const handoffText = agent?.handoffMessage || agent?.fallbackMessage || "تم تحويلك إلى الدعم الفني.";
+
+      const updated = await prisma.conversation.update({
+        where: { id: input.conversationId },
+        data: {
+          status: "WAITING_FOR_AGENT",
+          handoffReason: response.reason || "AI triggered handoff"
+        },
+        include: { contact: true, connection: true }
+      });
+
+      const handoffMessage = await this.createAndSendAiMessage({
+        organizationId: input.organizationId,
+        conversation: updated,
+        text: handoffText
+      });
+
+      await prisma.aiRun.create({
+        data: {
+          organizationId: input.organizationId,
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+          status: "COMPLETED",
+          decision: response.decision,
+          confidence: response.confidence,
+          input: input.content,
+          errorMessage: response.reason,
+          citations: response.citations,
+          tokenUsage: response.tokenUsage !== undefined ? { total: response.tokenUsage } : undefined,
+          costUsd: response.costUsd,
+          latencyMs,
+          completedAt: new Date()
+        }
+      });
+
+      await markPendingSupportEscalation({
+        conversationId: input.conversationId,
+        agentId: input.agentId,
+        question: input.content,
+        lastCustomerMessageId: input.messageId,
+        supportPhoneNumber: agent?.supportPhoneNumber
+      });
+
+      if (agent?.supportPhoneNumber && updated.connection.providerInstanceId) {
+        await this.evolutionProvider.sendText({
+          instanceId: updated.connection.providerInstanceId,
+          phoneNumber: agent.supportPhoneNumber,
+          text: [
+            "تنبيه دعم فني",
+            `العميل: ${updated.contact.name || "بدون اسم"}`,
+            `رقم العميل: ${updated.contact.primaryPhone}`,
+            `السؤال: ${input.content}`,
+            `المحادثة: ${process.env.APP_URL || "https://qanoai-whatsappsupport.vercel.app"}/app/inbox/${input.conversationId}`
+          ].join("\n")
+        });
+      }
+
+      this.safeEmitToOrganization(input.organizationId, "conversation:updated", {
+        id: updated.id,
+        contact: { name: updated.contact.name, primaryPhone: updated.contact.primaryPhone, avatarUrl: updated.contact.avatarUrl },
+        status: updated.status,
+        mode: updated.mode,
+        priority: updated.priority,
+        lastMessageAt: updated.lastMessageAt
+      });
+      this.safeEmitToOrganization(input.organizationId, "message:new", this.messagePayload(handoffMessage));
+    }
+  }
+
+  private async createAndSendAiMessage(input: { organizationId: string; conversation: any; text: string }) {
+    const message = await prisma.message.create({
+      data: {
+        organizationId: input.organizationId,
+        conversationId: input.conversation.id,
+        channelConnectionId: input.conversation.channelConnectionId,
+        contactId: input.conversation.contactId,
+        direction: "OUTBOUND",
+        senderType: "AI_AGENT",
+        messageType: "TEXT",
+        text: input.text,
+        providerStatus: "PENDING",
+        isAiGenerated: true
+      }
+    });
+
+    try {
+      const result = await this.evolutionProvider.sendText({
+        instanceId: input.conversation.connection.providerInstanceId,
+        phoneNumber: input.conversation.contact.normalizedPhone,
+        text: input.text
+      });
+      return prisma.message.update({
+        where: { id: message.id },
+        data: {
+          providerStatus: "SENT",
+          providerMessageId: result.messageId,
+          sentAt: new Date(),
+          failedAt: null,
+          providerErrorMessage: null
+        }
+      });
+    } catch (error: any) {
+      this.logger.error(`Inline AI WhatsApp send failed: ${error.message}`);
+      return prisma.message.update({
+        where: { id: message.id },
+        data: {
+          providerStatus: "FAILED",
+          providerErrorMessage: error.message,
+          failedAt: new Date()
+        }
+      });
+    }
+  }
+
+  private messagePayload(message: any) {
+    return {
+      id: message.id,
+      conversationId: message.conversationId,
+      text: message.text,
+      direction: message.direction,
+      senderType: message.senderType,
+      createdAt: message.createdAt,
+      providerStatus: message.providerStatus,
+      isAiGenerated: message.isAiGenerated
+    };
   }
 
   private async handleSupportReply(connection: any, event: any): Promise<boolean> {
@@ -198,7 +409,7 @@ export class WebhooksService {
       data: { lastMessageAt: new Date(), status: "WAITING_FOR_CUSTOMER" }
     });
 
-    emitToOrganization(supportConversation.organizationId, "conversation:updated", {
+    this.safeEmitToOrganization(supportConversation.organizationId, "conversation:updated", {
       id: updated.id,
       contact: {
         name: supportConversation.contact.name,
@@ -210,7 +421,7 @@ export class WebhooksService {
       priority: updated.priority,
       lastMessageAt: updated.lastMessageAt
     });
-    emitToOrganization(supportConversation.organizationId, "message:new", {
+    this.safeEmitToOrganization(supportConversation.organizationId, "message:new", {
       id: message.id,
       conversationId: message.conversationId,
       text: message.text,
@@ -243,10 +454,18 @@ export class WebhooksService {
           data: { providerStatus: status, providerErrorMessage: update?.error || null }
         });
         for (const m of matches) {
-          emitToOrganization(m.organizationId, "message:status", { messageId: m.id, status });
+          this.safeEmitToOrganization(m.organizationId, "message:status", { messageId: m.id, status });
         }
       }
       this.logger.log(`Updated message ${messageId} status to ${status}`);
+    }
+  }
+
+  private safeEmitToOrganization(organizationId: string, event: string, data: any): void {
+    try {
+      emitToOrganization(organizationId, event, data);
+    } catch (error: any) {
+      this.logger.warn(`Realtime emit skipped for ${event}: ${error.message}`);
     }
   }
 }
