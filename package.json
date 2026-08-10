@@ -5,6 +5,7 @@
   "description": "QanoAI WhatsAppSupport - AI-powered WhatsApp customer support platform",
   "scripts": {
     "build": "prisma generate --schema=prisma/schema.prisma && turbo run build",
+    "build:railway": "prisma generate --schema=prisma/schema.prisma && pnpm --filter @qanoai/shared build && pnpm --filter @qanoai/config build && pnpm --filter @qanoai/database build && pnpm --filter @qanoai/validation build && pnpm --filter @qanoai/permissions build && pnpm --filter @qanoai/queue build && pnpm --filter @qanoai/ai build && pnpm --filter @qanoai/api build && pnpm --filter @qanoai/worker build && pnpm --filter @qanoai/realtime build && pnpm --filter @qanoai/web build",
     "dev": "concurrently \"pnpm --filter api dev\" \"pnpm --filter web dev\" \"pnpm --filter worker dev\" \"pnpm --filter realtime dev\"",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
