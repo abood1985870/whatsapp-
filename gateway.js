@@ -11,6 +11,7 @@ console.log('Starting QanoAI Monolithic Backend...');
 const childEnv = { 
   ...process.env
 };
+const isWorkerDisabled = process.env.DISABLE_BACKGROUND_WORKER === 'true';
 
 // Start API (Runs on port 3001)
 const api = spawn('pnpm', ['--filter', '@qanoai/api', 'start'], { env: { ...childEnv, PORT: 3001 }, stdio: 'inherit' });
@@ -19,7 +20,11 @@ const api = spawn('pnpm', ['--filter', '@qanoai/api', 'start'], { env: { ...chil
 const realtime = spawn('pnpm', ['--filter', '@qanoai/realtime', 'start'], { env: { ...childEnv, PORT: 3002 }, stdio: 'inherit' });
 
 // Start Worker (No port)
-const worker = spawn('pnpm', ['--filter', '@qanoai/worker', 'start'], { env: childEnv, stdio: 'inherit' });
+if (isWorkerDisabled) {
+  console.log('Background worker disabled by DISABLE_BACKGROUND_WORKER=true');
+} else {
+  spawn('pnpm', ['--filter', '@qanoai/worker', 'start'], { env: childEnv, stdio: 'inherit' });
+}
 
 // Setup Gateway Proxy
 const app = express();
