@@ -63,6 +63,9 @@ export const createAgentSchema = z.object({
   greetingMessage: z.string().optional(),
   fallbackMessage: z.string().optional(),
   handoffMessage: z.string().optional(),
+  supportPhoneNumber: z.string().optional(),
+  autoLearningEnabled: z.boolean().default(false),
+  learningScope: z.enum(["AGENT", "ORGANIZATION"]).default("AGENT"),
   confidenceThreshold: z.number().min(0).max(1).default(0.7),
   autoReplyEnabled: z.boolean().default(true),
 });

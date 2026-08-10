@@ -36,6 +36,9 @@ export class AiAgentsService {
         greetingMessage: data.greetingMessage, 
         fallbackMessage: data.fallbackMessage, 
         handoffMessage: data.handoffMessage, 
+        supportPhoneNumber: data.supportPhoneNumber,
+        autoLearningEnabled: data.autoLearningEnabled ?? false,
+        learningScope: data.learningScope || "AGENT",
         confidenceThreshold: data.confidenceThreshold || 0.7, 
         autoReplyEnabled: data.autoReplyEnabled ?? true, 
         createdById: data.createdById 
@@ -54,6 +57,9 @@ export class AiAgentsService {
         greetingMessage: data.greetingMessage, 
         fallbackMessage: data.fallbackMessage, 
         handoffMessage: data.handoffMessage, 
+        supportPhoneNumber: data.supportPhoneNumber,
+        autoLearningEnabled: data.autoLearningEnabled,
+        learningScope: data.learningScope,
         confidenceThreshold: data.confidenceThreshold, 
         autoReplyEnabled: data.autoReplyEnabled, 
         suggestionsEnabled: data.suggestionsEnabled, 
@@ -73,7 +79,14 @@ export class AiAgentsService {
         version: nextVersion, 
         name: agent.name, 
         instructions: agent.systemInstructions, 
-        configuration: { tone: agent.tone, confidenceThreshold: agent.confidenceThreshold, autoReplyEnabled: agent.autoReplyEnabled }, 
+        configuration: {
+          tone: agent.tone,
+          confidenceThreshold: agent.confidenceThreshold,
+          autoReplyEnabled: agent.autoReplyEnabled,
+          supportPhoneNumber: agent.supportPhoneNumber,
+          autoLearningEnabled: agent.autoLearningEnabled,
+          learningScope: agent.learningScope
+        }, 
         status: "ACTIVE", 
         publishedAt: new Date() 
       } 
@@ -99,6 +112,9 @@ export class AiAgentsService {
         tone: config.tone,
         confidenceThreshold: config.confidenceThreshold,
         autoReplyEnabled: config.autoReplyEnabled,
+        supportPhoneNumber: config.supportPhoneNumber,
+        autoLearningEnabled: config.autoLearningEnabled,
+        learningScope: config.learningScope,
         activeVersionId: version.id
       }
     });
@@ -120,6 +136,9 @@ export class AiAgentsService {
         greetingMessage: agent.greetingMessage,
         fallbackMessage: agent.fallbackMessage,
         handoffMessage: agent.handoffMessage,
+        supportPhoneNumber: agent.supportPhoneNumber,
+        autoLearningEnabled: agent.autoLearningEnabled,
+        learningScope: agent.learningScope,
         confidenceThreshold: agent.confidenceThreshold,
         autoReplyEnabled: false, // Don't auto-enable copies
         createdById: userId,

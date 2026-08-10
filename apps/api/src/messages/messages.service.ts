@@ -3,6 +3,7 @@ import { prisma } from "@qanoai/database";
 import { generateCorrelationId } from "@qanoai/shared";
 import { emitToOrganization } from "@qanoai/queue";
 import { EvolutionProvider } from "../whatsapp/providers/evolution.provider";
+import { learnFromSupportReply } from "@qanoai/ai";
 
 @Injectable()
 export class MessagesService {
@@ -73,6 +74,12 @@ export class MessagesService {
         providerMessageId,
         clientIdempotencyKey: generateCorrelationId()
       }
+    });
+    await learnFromSupportReply({
+      conversationId: dto.conversationId,
+      answer: dto.text,
+      sourceMessageId: message.id,
+      source: "INBOX_HUMAN_REPLY"
     });
     await prisma.conversation.update({ where: { id: dto.conversationId }, data: { lastMessageAt: new Date(), status: "WAITING_FOR_CUSTOMER" } });
     emitToOrganization(dto.organizationId, "message:new", {

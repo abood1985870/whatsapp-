@@ -65,6 +65,7 @@ export async function semanticSearch(
 export async function getFaqContext(
   organizationId: string,
   query: string,
+  agentId?: string,
   limit: number = 3
 ): Promise<string> {
   // Very basic ILIKE search for FAQs. 
@@ -73,10 +74,15 @@ export async function getFaqContext(
     where: {
       organizationId,
       isActive: true,
-      OR: [
-        { question: { contains: query, mode: 'insensitive' } },
-        { answer: { contains: query, mode: 'insensitive' } }
-      ]
+      ...(agentId ? { OR: [{ agentId: null }, { agentId }] } : {}),
+      AND: [
+        {
+          OR: [
+            { question: { contains: query, mode: 'insensitive' } },
+            { answer: { contains: query, mode: 'insensitive' } }
+          ]
+        }
+      ],
     },
     take: limit
   });
@@ -94,11 +100,12 @@ export interface AssembledContext {
 export async function assembleContext(
   organizationId: string,
   query: string,
-  knowledgeBaseId?: string
+  knowledgeBaseId?: string,
+  agentId?: string
 ): Promise<AssembledContext> {
   const [semanticResults, faqContext] = await Promise.all([
     semanticSearch(organizationId, query, knowledgeBaseId),
-    getFaqContext(organizationId, query)
+    getFaqContext(organizationId, query, agentId)
   ]);
 
   let context = "";

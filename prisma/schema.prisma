@@ -601,6 +601,7 @@ model Conversation {
   summary             String?
   sentiment           String?
   slaDueAt            DateTime?
+  metadata            Json     @default("{}")
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   deletedAt           DateTime?
@@ -823,6 +824,9 @@ model AiAgent {
   fallbackMessage     String?
   handoffMessage      String?
   afterHoursMessage   String?
+  supportPhoneNumber  String?
+  autoLearningEnabled Boolean  @default(false)
+  learningScope       String   @default("AGENT")
   confidenceThreshold Float    @default(0.7)
   autoReplyEnabled    Boolean  @default(true)
   suggestionsEnabled  Boolean  @default(false)
@@ -1080,15 +1084,21 @@ model IngestionJob {
 model FaqEntry {
   id             String   @id @default(cuid())
   organizationId String
+  agentId        String?
   question       String
   answer         String
   category       String?
   language       String   @default("ar")
   isActive       Boolean  @default(true)
+  source         String   @default("MANUAL")
+  sourceConversationId String?
+  sourceMessageId String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   @@index([organizationId])
+  @@index([agentId])
+  @@index([sourceConversationId])
   @@index([category])
   @@map("faq_entries")
 }

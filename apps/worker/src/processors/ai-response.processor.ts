@@ -2,7 +2,9 @@ import { Job } from 'bullmq';
 import { Logger } from '@nestjs/common';
 import { prisma } from '@qanoai/database';
 import { queues, emitToOrganization } from '@qanoai/queue';
-import { processAgentTurn } from '@qanoai/ai';
+import { markPendingSupportEscalation, processAgentTurn } from '@qanoai/ai';
+import { config } from '@qanoai/config';
+import axios from 'axios';
 
 const logger = new Logger('AiResponseProcessor');
 
@@ -11,7 +13,10 @@ export async function processAiResponse(job: Job) {
   const { organizationId, conversationId, agentId, content } = job.data;
 
   try {
-    const conversation = await prisma.conversation.findUnique({ where: { id: conversationId } });
+    const conversation = await prisma.conversation.findUnique({
+      where: { id: conversationId },
+      include: { contact: true, connection: true }
+    });
     if (!conversation) {
       logger.warn(`Conversation ${conversationId} not found, skipping AI response`);
       return;
@@ -45,7 +50,6 @@ export async function processAiResponse(job: Job) {
     const latencyMs = Date.now() - startedAt;
 
     if (response.decision === 'REPLY' && response.replyMessage) {
-      // 1. Create message
       const aiMessage = await prisma.message.create({
         data: {
           organizationId,
@@ -61,7 +65,6 @@ export async function processAiResponse(job: Job) {
         }
       });
 
-      // 2. Log run
       await prisma.aiRun.create({
         data: {
           organizationId,
@@ -80,7 +83,6 @@ export async function processAiResponse(job: Job) {
         }
       });
 
-      // 3. Broadcast to connected clients
       emitToOrganization(organizationId, 'message:new', {
         id: aiMessage.id,
         conversationId,
@@ -92,19 +94,17 @@ export async function processAiResponse(job: Job) {
         isAiGenerated: aiMessage.isAiGenerated
       });
 
-      // 4. Dispatch to outgoing queue
       await queues.whatsappOutgoing.add('send-ai-response', {
         messageId: aiMessage.id
       });
     } else if (response.decision === 'HANDOFF') {
       const agent = await prisma.aiAgent.findUnique({ where: { id: agentId } });
-      const handoffText = agent?.handoffMessage || agent?.fallbackMessage || 'وصلني طلبك، وبحوّله الآن لفريق الدعم عشان يرد عليك بدقة.';
+      const handoffText = agent?.handoffMessage || agent?.fallbackMessage || 'تم تحويلك إلى الدعم الفني.';
 
-      // 1. Update conversation mode to manual
+      // Keep AI mode unchanged so future answerable messages can still be handled.
       const updated = await prisma.conversation.update({
         where: { id: conversationId },
         data: {
-          mode: 'AI_ASSISTED',
           status: 'WAITING_FOR_AGENT',
           handoffReason: response.reason || 'AI triggered handoff'
         },
@@ -145,7 +145,6 @@ export async function processAiResponse(job: Job) {
         isAiGenerated: handoffMessage.isAiGenerated
       });
 
-      // 2. Log run
       await prisma.aiRun.create({
         data: {
           organizationId,
@@ -168,6 +167,27 @@ export async function processAiResponse(job: Job) {
         messageId: handoffMessage.id
       });
 
+      await markPendingSupportEscalation({
+        conversationId,
+        agentId,
+        question: content,
+        lastCustomerMessageId: job.data.messageId,
+        supportPhoneNumber: agent?.supportPhoneNumber
+      });
+
+      if (agent?.supportPhoneNumber && conversation.connection.providerInstanceId) {
+        await notifySupport({
+          instanceId: conversation.connection.providerInstanceId,
+          supportPhoneNumber: agent.supportPhoneNumber,
+          customerName: conversation.contact.name,
+          customerPhone: conversation.contact.primaryPhone,
+          question: content,
+          conversationId
+        });
+      } else {
+        logger.warn(`Support notification skipped for conversation ${conversationId}; no support phone or WhatsApp instance configured.`);
+      }
+
       logger.log(`Conversation ${conversationId} handed off to human agents.`);
     }
 
@@ -176,4 +196,33 @@ export async function processAiResponse(job: Job) {
     logger.error(`Error generating AI response: ${error.message}`);
     throw error;
   }
+}
+
+async function notifySupport(input: {
+  instanceId: string;
+  supportPhoneNumber: string;
+  customerName: string | null;
+  customerPhone: string;
+  question: string;
+  conversationId: string;
+}) {
+  const conversationUrl = `${config.APP_URL || 'http://localhost:3000'}/app/inbox/${input.conversationId}`;
+  const text = [
+    'تنبيه دعم فني',
+    `العميل: ${input.customerName || 'بدون اسم'}`,
+    `رقم العميل: ${input.customerPhone}`,
+    `السؤال: ${input.question}`,
+    `المحادثة: ${conversationUrl}`
+  ].join('\n');
+
+  await axios.post(
+    `${config.EVOLUTION_API_URL}/message/sendText/${input.instanceId}`,
+    { number: input.supportPhoneNumber, text },
+    {
+      headers: {
+        apikey: config.EVOLUTION_API_KEY,
+        'Content-Type': 'application/json'
+      }
+    }
+  );
 }

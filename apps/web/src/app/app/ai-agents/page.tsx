@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bot, Plus, Settings, Play, Send, UserCheck } from "lucide-react";
+import { Bot, Plus, Settings, Play, Send, UserCheck, PhoneCall, Database } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -78,6 +78,9 @@ export default function AiAgentsPage() {
       greetingMessage: agent.greetingMessage || "",
       fallbackMessage: agent.fallbackMessage || "",
       handoffMessage: agent.handoffMessage || "",
+      supportPhoneNumber: agent.supportPhoneNumber || "",
+      autoLearningEnabled: agent.autoLearningEnabled ?? false,
+      learningScope: agent.learningScope || "AGENT",
       confidenceThreshold: agent.confidenceThreshold ?? 0.7,
       autoReplyEnabled: agent.autoReplyEnabled ?? true,
       workingHoursOnly: agent.workingHoursOnly ?? false,
@@ -235,6 +238,41 @@ export default function AiAgentsPage() {
               onChange={(e) => setConfigData({ ...configData, fallbackMessage: e.target.value })}
               placeholder="لم أتمكن من الإجابة بدقة، سأحوّلك للدعم."
             />
+          </div>
+          <div className="border rounded-lg p-4 space-y-3 bg-gray-50">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
+              <PhoneCall className="w-4 h-4 text-gold-600" />
+              رقم الدعم والتعلم التلقائي
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">رقم دعم هذا الوكيل</label>
+              <Input
+                value={configData.supportPhoneNumber}
+                onChange={(e) => setConfigData({ ...configData, supportPhoneNumber: e.target.value })}
+                placeholder="مثال: 9665XXXXXXXX"
+              />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={configData.autoLearningEnabled}
+                  onChange={(e) => setConfigData({ ...configData, autoLearningEnabled: e.target.checked })}
+                />
+                حفظ إجابات الدعم تلقائيا
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <Database className="w-4 h-4 text-gray-400" />
+                <select
+                  value={configData.learningScope}
+                  onChange={(e) => setConfigData({ ...configData, learningScope: e.target.value })}
+                  className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="AGENT">لهذا الوكيل فقط</option>
+                  <option value="ORGANIZATION">لكل وكلاء الحساب</option>
+                </select>
+              </label>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>

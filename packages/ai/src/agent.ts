@@ -80,7 +80,7 @@ export async function processAgentTurn(context: AgentContext): Promise<AgentResp
   const detectedLanguage = detectLanguage(context.message, agent.defaultLanguage);
 
   // 6. Assemble RAG Context
-  const { context: ragContext, citations } = await assembleContext(context.organizationId, maskedMessage);
+  const { context: ragContext, citations } = await assembleContext(context.organizationId, maskedMessage, undefined, agent.id);
 
   // 7. Fetch Conversation History
   const history = await prisma.message.findMany({
@@ -109,7 +109,7 @@ ${agent.systemInstructions}
 RAG Context (Use this to answer questions):
 ${ragContext}
 
-Decide your action carefully. If you are confident, reply. If you need a tool, call it. If you cannot answer or the user requests a human, choose HANDOFF.
+Decide your action carefully. Use only the business facts found in the instructions, FAQ, or knowledge base. Do not invent prices, products, policies, availability, or technical claims. If the available context does not contain a reliable answer, choose HANDOFF.
 `;
 
   const messagesPayload = [

@@ -99,6 +99,7 @@ export class EvolutionProvider implements WhatsAppProvider {
       const payload = input as any; 
       const connectionEvent = this.parseConnectionUpdate(payload);
       if (connectionEvent) return connectionEvent;
+      if (payload?.data?.key?.fromMe) return null;
 
       const phoneNumber = this.extractPhoneNumber(payload);
       if (!phoneNumber) return null; 
