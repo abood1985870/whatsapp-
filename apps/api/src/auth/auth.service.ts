@@ -38,7 +38,12 @@ export class AuthService {
         name: dto.name,
         email: dto.email,
         passwordHash,
-        emailVerifiedAt: new Date(),
+        // NOT verified. This set emailVerifiedAt at registration, which meant
+        // every address in the system was marked as proven when none had been
+        // checked — the flag said "we confirmed this person owns this inbox"
+        // and it was never true. Verification is a separate, deliberate step;
+        // marking it done here made the column meaningless.
+        emailVerifiedAt: null,
       },
     });
 
@@ -255,6 +260,11 @@ export class AuthService {
     const user = await prisma.user.findFirst({ where: { email, deletedAt: null } });
 
     if (user) {
+      // Invalidate any earlier outstanding reset for this account. Several
+      // simultaneously-valid links multiply the window and make it impossible
+      // to tell which one was used.
+      await prisma.verification.deleteMany({ where: { userId: user.id, type: "PASSWORD_RESET" } });
+
       const token = uuidv4();
       await prisma.verification.create({
         data: {
@@ -262,7 +272,10 @@ export class AuthService {
           email,
           token,
           type: "PASSWORD_RESET",
-          expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+          // 30 minutes, not 24 hours. A password-reset link is a live key to
+          // the account; leaving it usable for a day means a link sitting in an
+          // inbox, a forwarded email, or a shared screen stays usable for a day.
+          expiresAt: new Date(Date.now() + 1000 * 60 * 30),
         },
       });
     }

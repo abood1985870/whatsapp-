@@ -22,8 +22,15 @@ export class ConversationsController {
   @Get()
   @UseGuards(PermissionGuard)
   @RequirePermission("conversations.read")
-  async list(@CurrentOrganization() organizationId: string, @Query("status") status?: string, @Query("assignedToMe") assignedToMe?: boolean, @Query("membershipId") membershipId?: string) {
-    return this.conversationsService.findAll(organizationId, { status, assignedToMe, membershipId });
+  async list(
+    @CurrentOrganization() organizationId: string,
+    @Query("status") status?: string,
+    @Query("assignedToMe") assignedToMe?: boolean,
+    @Query("membershipId") membershipId?: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string
+  ) {
+    return this.conversationsService.findAll(organizationId, { status, assignedToMe, membershipId, page, limit });
   }
 
   @Get("export")

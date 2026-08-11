@@ -2,7 +2,7 @@ const db: any = {
   user: { findFirst: jest.fn(), findUnique: jest.fn(), update: jest.fn(), create: jest.fn() },
   session: { create: jest.fn(), deleteMany: jest.fn(), findUnique: jest.fn() },
   twoFactorCredential: { findFirst: jest.fn(), deleteMany: jest.fn(), create: jest.fn(), update: jest.fn() },
-  verification: { create: jest.fn(), findUnique: jest.fn(), delete: jest.fn() },
+  verification: { create: jest.fn(), findUnique: jest.fn(), delete: jest.fn(), deleteMany: jest.fn() },
   auditLog: { create: jest.fn() },
   role: { findFirst: jest.fn() },
   membership: { create: jest.fn() },
@@ -55,6 +55,7 @@ describe("AuthService hardening", () => {
     db.session.deleteMany.mockResolvedValue({ count: 1 });
     db.user.update.mockResolvedValue({});
     db.auditLog.create.mockResolvedValue({});
+    db.verification.deleteMany.mockResolvedValue({ count: 0 });
   });
 
   describe("login", () => {
@@ -210,6 +211,29 @@ describe("AuthService hardening", () => {
       await service.forgotPassword("nobody@b.com");
       expect(db.verification.create).not.toHaveBeenCalled();
     });
+
+    it("invalidates any earlier outstanding reset link", async () => {
+      db.user.findFirst.mockResolvedValue(activeUser());
+      db.verification.create.mockResolvedValue({});
+      await service.forgotPassword("a@b.com");
+      // Several simultaneously-valid links multiply the window and make it
+      // impossible to tell which one was used.
+      expect(db.verification.deleteMany).toHaveBeenCalledWith({
+        where: { userId: "u-1", type: "PASSWORD_RESET" },
+      });
+    });
+
+    it("issues a link that expires in well under an hour", async () => {
+      db.user.findFirst.mockResolvedValue(activeUser());
+      db.verification.create.mockResolvedValue({});
+      const before = Date.now();
+      await service.forgotPassword("a@b.com");
+      const { expiresAt } = db.verification.create.mock.calls[0][0].data;
+      const lifetimeMinutes = (new Date(expiresAt).getTime() - before) / 60000;
+      // It was 24 hours: a live key to the account sitting in an inbox all day.
+      expect(lifetimeMinutes).toBeLessThanOrEqual(31);
+      expect(lifetimeMinutes).toBeGreaterThan(1);
+    });
   });
 
   describe("2FA management", () => {
@@ -246,6 +270,17 @@ describe("AuthService hardening", () => {
   });
 
   describe("register", () => {
+    it("does not mark the email as verified — nothing was checked", async () => {
+      db.user.findUnique.mockResolvedValue(null);
+      db.user.create.mockResolvedValue(activeUser());
+      db.organization.create.mockResolvedValue({ id: "o-1" });
+      db.role.findFirst.mockResolvedValue({ id: "r-1" });
+      db.membership.create.mockResolvedValue({});
+
+      await service.register({ name: "n", email: "a@b.com", password: "a-much-longer-one", organizationName: "o" });
+      expect(db.user.create.mock.calls[0][0].data.emailVerifiedAt).toBeNull();
+    });
+
     it("binds to the GLOBAL owner role, not a tenant role of the same name", async () => {
       db.user.findUnique.mockResolvedValue(null);
       db.user.create.mockResolvedValue(activeUser());

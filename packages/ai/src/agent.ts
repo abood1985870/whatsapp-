@@ -60,12 +60,20 @@ export async function processAgentTurn(context: AgentContext): Promise<AgentResp
   }
 
   // 4. Safety Guardrails
-  const injectionCheck = detectPromptInjection(context.message);
+  //
+  // Mask BEFORE anything leaves the process. moderateContent posts the message
+  // to OpenAI's moderation endpoint, and it was being handed the raw text —
+  // so a customer's card number or ID went to a third party before the masker
+  // that exists to prevent exactly that had run. Masking first costs nothing:
+  // the moderation verdict does not depend on the digits.
+  const maskedMessage = maskPII(context.message);
+
+  const injectionCheck = detectPromptInjection(maskedMessage);
   if (injectionCheck.flagged) {
     return { decision: 'HANDOFF', confidence: 0, reason: 'PROMPT_INJECTION_DETECTED' };
   }
 
-  const moderation = await moderateContent(context.message);
+  const moderation = await moderateContent(maskedMessage);
   if (moderation.flagged) {
     return { decision: 'HANDOFF', confidence: 0, reason: moderation.reason };
   }
@@ -88,7 +96,6 @@ export async function processAgentTurn(context: AgentContext): Promise<AgentResp
     }
   }
 
-  const maskedMessage = maskPII(context.message);
   const detectedLanguage = detectLanguage(context.message, agent.defaultLanguage);
 
   // 6. Assemble RAG Context
@@ -101,9 +108,15 @@ export async function processAgentTurn(context: AgentContext): Promise<AgentResp
     take: 10
   });
 
+  // History is masked too.
+  //
+  // Only the newest message went through maskPII; the previous ten were sent
+  // verbatim. So a card number a customer typed two messages ago was still
+  // shipped to the model on every subsequent turn — masking the latest message
+  // achieved nothing while the same text sat one line above it.
   const chatMessages: any[] = history.reverse().map((msg: any) => ({
     role: msg.senderType === 'CUSTOMER' ? 'user' : 'assistant',
-    content: msg.text || ''
+    content: maskPII(msg.text || '')
   }));
   const latestMessageIsAlreadyInHistory = chatMessages.at(-1)?.role === 'user'
     && chatMessages.at(-1)?.content === maskedMessage;

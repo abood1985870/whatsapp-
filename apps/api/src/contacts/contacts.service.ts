@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from "@nestjs/common";
 import { prisma } from "@qanoai/database";
-import { normalizePhone } from "@qanoai/shared";
+import { normalizePhone, csvRow } from "@qanoai/shared";
 
 @Injectable()
 export class ContactsService {
@@ -90,9 +90,11 @@ export class ContactsService {
       where: { organizationId, deletedAt: null },
       orderBy: { createdAt: "desc" }
     });
-    let csv = "ID,Name,Phone,Email,Company,Language,City,Country,Created At\n";
+    // Every cell through the shared escaper: a company name containing a comma
+    // or a quote used to shift every column after it.
+    let csv = csvRow(["ID", "Name", "Phone", "Email", "Company", "Language", "City", "Country", "Created At"]) + "\n";
     for (const c of contacts) {
-      csv += `${c.id},"${c.name || ''}","${c.primaryPhone}","${c.email || ''}","${c.company || ''}","${c.language || ''}","${c.city || ''}","${c.country || ''}",${c.createdAt.toISOString()}\n`;
+      csv += csvRow([c.id, c.name, c.primaryPhone, c.email, c.company, c.language, c.city, c.country, c.createdAt]) + "\n";
     }
     return csv;
   }

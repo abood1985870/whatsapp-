@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { prisma } from "@qanoai/database";
 import { queues, emitToOrganization } from "@qanoai/queue";
+import { csvRow, clampPage } from "@qanoai/shared";
 
 /**
  * Every method takes `organizationId` and puts it in the `where` clause.
@@ -32,7 +33,14 @@ export class ConversationsService {
     if (filters.status) where.status = filters.status;
     if (filters.assignedToMe && filters.membershipId) where.assignedMembershipId = filters.membershipId;
 
+    // This had no take at all. An organization with a large inbox would have
+    // had every conversation it has ever had loaded, joined and serialised into
+    // one response.
+    const { skip, take } = clampPage(filters.page, filters.limit, { defaultLimit: 100, maxLimit: 200 });
+
     return prisma.conversation.findMany({
+      skip,
+      take,
       where,
       include: {
         contact: { select: { id: true, name: true, primaryPhone: true, avatarUrl: true } },
@@ -339,24 +347,24 @@ export class ConversationsService {
       orderBy: { createdAt: "desc" },
     });
 
-    // Values are quoted and internal quotes doubled — a contact named
-    // `شركة "الرواد"` used to break the column alignment of the whole file.
-    const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-
-    let csv = "ID,Status,Mode,Priority,Contact Name,Contact Phone,Assigned To,Created At,Last Message At\n";
+    // One shared escaper across all four export endpoints, which also neutralises
+    // leading =, +, - and @ so a note field cannot become a live Excel formula.
+    let csv =
+      csvRow(["ID", "Status", "Mode", "Priority", "Contact Name", "Contact Phone", "Assigned To", "Created At", "Last Message At"]) +
+      "\n";
     for (const c of conversations) {
       csv +=
-        [
-          cell(c.id),
-          cell(c.status),
-          cell(c.mode),
-          cell(c.priority),
-          cell(c.contact.name),
-          cell(c.contact.primaryPhone),
-          cell(c.assignedMembership?.user?.name || "Unassigned"),
-          cell(c.createdAt.toISOString()),
-          cell(c.lastMessageAt?.toISOString() || ""),
-        ].join(",") + "\n";
+        csvRow([
+          c.id,
+          c.status,
+          c.mode,
+          c.priority,
+          c.contact.name,
+          c.contact.primaryPhone,
+          c.assignedMembership?.user?.name || "Unassigned",
+          c.createdAt,
+          c.lastMessageAt ?? "",
+        ]) + "\n";
     }
     return csv;
   }

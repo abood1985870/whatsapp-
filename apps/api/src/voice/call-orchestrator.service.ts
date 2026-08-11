@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { prisma } from "@qanoai/database";
-import { generateCorrelationId, normalizePhone, normalizePhoneStrict } from "@qanoai/shared";
+import { redactPII, redactObject, maskPhoneNumber, generateCorrelationId, normalizePhone, normalizePhoneStrict } from "@qanoai/shared";
 import { VOICE_CAPABILITIES } from "@qanoai/permissions";
 import {
   buildFailsafeMessage,
@@ -157,7 +157,10 @@ export class CallOrchestratorService {
     });
 
     await this.recordEvent(call.id, "CALL_RECEIVED", null, "RINGING", {
-      from: input.fromNumber,
+      // Masked. The full number is already on the Call row where it belongs and
+      // is access-controlled; copying it into an event metadata blob put it in
+      // a second place with looser handling, for no added value.
+      from: maskPhoneNumber(input.fromNumber),
       isKnownCustomer: caller.isKnownCustomer,
     });
 
@@ -454,18 +457,35 @@ export class CallOrchestratorService {
   private async appendTranscript(session: CallSession, callId: string, speaker: string, text: string) {
     const clean = String(text ?? "").trim();
     if (!clean) return;
-    session.transcript.push({ speaker, text: clean });
 
-    const redacted = this.redactPii(clean);
+    // The redacted copy is the ONLY one that persists.
+    //
+    // This stored `text: clean` — the verbatim transcript — and put the safe
+    // version in `redactedText`, which is backwards: the raw column is the one
+    // that is read, displayed on the call page, and fed to summarization. A
+    // caller reading out an ID number, an IBAN or a card over the phone had it
+    // written to the database in the clear, permanently, for a feature nobody
+    // needed it for.
+    //
+    // Two passes: the local one catches spoken OTP patterns, and the shared
+    // redactor catches ids, IBANs, cards, emails and phone numbers.
+    const localPass = this.redactPii(clean);
+    const safeText = redactPII(localPass.text);
+    const changed = localPass.changed || safeText !== localPass.text;
+
+    // The in-memory transcript is redacted too — it is what gets handed to the
+    // summarizer, and it lives in the process for the length of the call.
+    session.transcript.push({ speaker, text: safeText });
+
     await prisma.callTranscriptTurn
       .create({
         data: {
           callId,
           turnIndex: session.turnIndex++,
           speaker,
-          text: clean,
-          redactedText: redacted.changed ? redacted.text : null,
-          containsPii: redacted.changed,
+          text: safeText,
+          redactedText: null,
+          containsPii: changed,
           startOffsetMs: Date.now() - session.startedAt,
         },
       })
@@ -611,11 +631,17 @@ export class CallOrchestratorService {
       return;
     }
 
+    // The summary is model output built from what was said. Even from a
+    // redacted transcript it can restate an identifier the redactor missed, so
+    // it goes through the same pass before it is stored.
+    const safeSummary = redactPII(summary.data.summary);
+    const safeStructured = redactObject(summary.data);
+
     await prisma.call.update({
       where: { id: callId },
       data: {
-        summary: summary.data.summary,
-        structuredSummary: summary.data as any,
+        summary: safeSummary,
+        structuredSummary: safeStructured as any,
         salesOutcome: summary.data.outcome,
         supportRequired: call.supportRequired || summary.data.supportRequired,
       },

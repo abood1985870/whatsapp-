@@ -318,6 +318,9 @@ importers:
       '@qanoai/queue':
         specifier: workspace:*
         version: link:../../packages/queue
+      '@qanoai/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       axios:
         specifier: ^1.6.7
         version: 1.19.0

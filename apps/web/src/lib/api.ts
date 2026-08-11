@@ -32,6 +32,9 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !isCredentialRoute) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("token");
+        // Clear the presence cookie too, or middleware keeps letting the
+        // visitor into a shell whose every request 401s.
+        document.cookie = "qano-signed-in=; path=/; max-age=0; SameSite=Lax";
         window.location.href = "/login";
       }
     }

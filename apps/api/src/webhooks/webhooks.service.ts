@@ -2,7 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { prisma } from "@qanoai/database";
 import { queues, emitToOrganization } from "@qanoai/queue";
 import { EvolutionProvider } from "../whatsapp/providers/evolution.provider";
-import { normalizePhone, generateCorrelationId } from "@qanoai/shared";
+import { normalizePhone, generateCorrelationId, redactObject } from "@qanoai/shared";
+import { createHash } from "crypto";
 import {
   findPendingEscalationForSupportPhone,
   claimPendingSupportEscalation,
@@ -60,11 +61,20 @@ export class WebhooksService {
         channelConnectionId: connection.id, 
         provider: "EVOLUTION", 
         providerEventId: event.message?.id, 
-        eventType: event.eventType, 
-        idempotencyKey, 
-        sanitizedPayload: payload, 
-        payloadHash: generateCorrelationId(), 
-        processingStatus: "RECEIVED" 
+        eventType: event.eventType,
+        idempotencyKey,
+        // Actually sanitized.
+        //
+        // The column is called sanitizedPayload and the raw provider payload
+        // was stored in it verbatim — the message body, the sender's number,
+        // push name, everything — kept indefinitely in a table nobody prunes.
+        sanitizedPayload: redactObject(payload) as any,
+        // A real digest of the raw payload. This was generateCorrelationId(),
+        // which is a timestamp plus random characters — a different value for
+        // identical payloads, so it could not do the one thing a payload hash
+        // is for: telling you whether two deliveries carried the same content.
+        payloadHash: createHash("sha256").update(JSON.stringify(payload ?? {})).digest("hex"),
+        processingStatus: "RECEIVED"
       } 
     });
     
