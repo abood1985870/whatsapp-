@@ -1,9 +1,10 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, UseGuards } from "@nestjs/common";
+import { Controller, Post, Body, HttpCode, HttpStatus, Get, Req, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiBearerAuth } from "@nestjs/swagger";
-import { IsEmail, IsString, IsNotEmpty, MinLength } from "class-validator";
+import { IsEmail, IsString, IsNotEmpty, IsOptional, MinLength } from "class-validator";
 import { AuthService } from "./auth.service";
 import { AuthGuard } from "../common/guards/auth.guard";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
+import { AuthThrottleGuard } from "./auth-throttle.guard";
 
 class RegisterDto {
   @IsString()
@@ -14,7 +15,7 @@ class RegisterDto {
   email: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(10, { message: "كلمة المرور لازم تكون ١٠ أحرف على الأقل" })
   password: string;
 
   @IsString()
@@ -42,7 +43,7 @@ class ResetPasswordDto {
   token: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(10, { message: "كلمة المرور لازم تكون ١٠ أحرف على الأقل" })
   password: string;
 }
 
@@ -50,6 +51,26 @@ class VerifyEmailDto {
   @IsString()
   @IsNotEmpty()
   token: string;
+}
+
+class LoginMfaDto {
+  @IsString()
+  @IsNotEmpty()
+  mfaToken: string;
+
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+}
+
+class Disable2FaDto {
+  @IsString()
+  @IsOptional()
+  token?: string;
+
+  @IsString()
+  @IsOptional()
+  password?: string;
 }
 
 class Verify2FaDto {
@@ -64,7 +85,7 @@ class ChangePasswordDto {
   currentPassword: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(10, { message: "كلمة المرور لازم تكون ١٠ أحرف على الأقل" })
   newPassword: string;
 }
 
@@ -79,17 +100,35 @@ class UpdateProfileDto {
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  /** Recorded on the session and on failed-login audit rows. */
+  private contextOf(req: any) {
+    return { ip: req?.ip, userAgent: req?.headers?.["user-agent"] };
+  }
+
   @Post("register")
+  @UseGuards(AuthThrottleGuard)
   @ApiOperation({ summary: "Register new user and organization" })
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @Post("login")
+  @UseGuards(AuthThrottleGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Login with email and password" })
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.email, dto.password);
+  async login(@Body() dto: LoginDto, @Req() req: any) {
+    // Returns { mfaRequired, mfaToken } when the account has 2FA enabled — the
+    // caller must then post to /auth/login/mfa. Password alone is no longer a
+    // complete login for those accounts.
+    return this.authService.login(dto.email, dto.password, this.contextOf(req));
+  }
+
+  @Post("login/mfa")
+  @UseGuards(AuthThrottleGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Complete a 2FA login" })
+  async loginMfa(@Body() dto: LoginMfaDto, @Req() req: any) {
+    return this.authService.loginMfa(dto.mfaToken, dto.code, this.contextOf(req));
   }
 
   @Get("me")
@@ -101,6 +140,7 @@ export class AuthController {
   }
 
   @Post("forgot-password")
+  @UseGuards(AuthThrottleGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Send password reset email" })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
@@ -108,6 +148,7 @@ export class AuthController {
   }
 
   @Post("reset-password")
+  @UseGuards(AuthThrottleGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Reset password with token" })
   async resetPassword(@Body() dto: ResetPasswordDto) {
@@ -126,8 +167,8 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Refresh JWT token" })
-  async refresh(@CurrentUser() user: any) {
-    return this.authService.refreshToken(user.id);
+  async refresh(@CurrentUser() user: any, @Req() req: any) {
+    return this.authService.refreshToken(user.id, req.sessionJti, this.contextOf(req));
   }
 
   @Post("logout")
@@ -135,8 +176,17 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Invalidate session" })
-  async logout(@CurrentUser() user: any) {
-    return this.authService.logout(user.id);
+  async logout(@CurrentUser() user: any, @Req() req: any) {
+    return this.authService.logout(user.id, req.sessionJti);
+  }
+
+  @Post("logout-all")
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Sign out of every device" })
+  async logoutAll(@CurrentUser() user: any) {
+    return this.authService.logoutAll(user.id);
   }
 
   @Post("change-password")
@@ -166,7 +216,7 @@ export class AuthController {
   }
 
   @Post("2fa/verify")
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, AuthThrottleGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Verify TOTP 2FA" })
@@ -179,7 +229,8 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Disable TOTP 2FA" })
-  async disable2Fa(@CurrentUser() user: any) {
-    return this.authService.disable2Fa(user.id);
+  async disable2Fa(@CurrentUser() user: any, @Body() dto: Disable2FaDto) {
+    // Requires a current TOTP code or the account password.
+    return this.authService.disable2Fa(user.id, dto);
   }
 }

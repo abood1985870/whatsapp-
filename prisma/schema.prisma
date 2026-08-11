@@ -108,6 +108,10 @@ model TwoFactorCredential {
   userId    String
   secret    String
   backupCodes String?
+  // Null until the user proves they can generate a code from this secret.
+  // Setup used to write the credential as if it were already active, so
+  // scanning the QR and closing the tab left 2FA half-enabled.
+  confirmedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

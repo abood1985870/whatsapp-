@@ -14,7 +14,8 @@
     "db:reset": "prisma migrate reset --force --schema=../../prisma/schema.prisma",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",
-    "db:sync-permissions": "tsx src/sync-permissions.cli.ts"
+    "db:sync-permissions": "tsx src/sync-permissions.cli.ts",
+    "db:apply-2fa-column": "tsx src/apply-2fa-column.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",

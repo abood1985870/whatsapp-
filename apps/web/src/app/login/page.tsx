@@ -15,12 +15,24 @@ import { Input, Field } from "@/components/ui/input";
  * an account to use it in.
  */
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, completeMfa } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Set when the account has two-factor enabled. Until the code is accepted the
+  // user holds nothing but a five-minute token that can do only one thing.
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [code, setCode] = useState("");
+
+  const goToApp = (data: any) => {
+    const isPlatformOwner = (data.memberships || []).some(
+      (membership: any) =>
+        membership.status === "ACTIVE" && membership.role?.name === "PLATFORM_SUPER_ADMIN"
+    );
+    window.location.href = isPlatformOwner ? "/app/platform" : "/app/inbox";
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,13 +40,26 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const data = await login(email, password);
-      const isPlatformOwner = (data.memberships || []).some(
-        (membership: any) =>
-          membership.status === "ACTIVE" && membership.role?.name === "PLATFORM_SUPER_ADMIN"
-      );
-      window.location.href = isPlatformOwner ? "/app/platform" : "/app/inbox";
+      if (data?.mfaRequired) {
+        setMfaToken(data.mfaToken);
+        return;
+      }
+      goToApp(data);
     } catch (err: any) {
       setError(err.response?.data?.error?.message || "تعذّر تسجيل الدخول. تأكد من البريد وكلمة المرور.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMfa = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      goToApp(await completeMfa(mfaToken!, code.trim()));
+    } catch (err: any) {
+      setError(err.response?.data?.error?.message || "الرمز غير صحيح. جرّب الرمز الحالي من التطبيق.");
     } finally {
       setLoading(false);
     }
@@ -97,9 +122,58 @@ export default function LoginPage() {
             <span className="text-[15px] font-semibold tracking-tight text-content">QanoAI</span>
           </div>
 
-          <h1 className="text-title font-semibold text-content">تسجيل الدخول</h1>
-          <p className="text-label text-muted mt-1 mb-8">ادخل إلى لوحة المناوبة الخاصة بمنشأتك.</p>
+          <h1 className="text-title font-semibold text-content">
+            {mfaToken ? "التحقق بخطوتين" : "تسجيل الدخول"}
+          </h1>
+          <p className="text-label text-muted mt-1 mb-8">
+            {mfaToken
+              ? "افتح تطبيق المصادقة واكتب الرمز الظاهر الآن."
+              : "ادخل إلى لوحة المناوبة الخاصة بمنشأتك."}
+          </p>
 
+          {mfaToken ? (
+            <form onSubmit={handleMfa} className="space-y-5">
+              {error && (
+                <div
+                  role="alert"
+                  className="rounded border border-danger-500/30 bg-danger-50 dark:bg-danger-600/10 px-4 py-3 text-label text-danger-600 dark:text-danger-400"
+                >
+                  {error}
+                </div>
+              )}
+
+              <Field label="رمز التحقق" htmlFor="code" required hint="٦ أرقام، يتغيّر كل ٣٠ ثانية.">
+                <Input
+                  id="code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  required
+                  numeric
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  placeholder="000000"
+                  className="text-center tracking-[0.5em] text-[18px]"
+                />
+              </Field>
+
+              <Button type="submit" size="lg" loading={loading} disabled={code.length !== 6} className="w-full">
+                {loading ? "جارٍ التحقق…" : "تأكيد"}
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMfaToken(null);
+                  setCode("");
+                  setError("");
+                }}
+                className="w-full text-label text-muted hover:text-content transition-colors"
+              >
+                رجوع
+              </button>
+            </form>
+          ) : (
           <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
               <div
@@ -152,6 +226,7 @@ export default function LoginPage() {
               {loading ? "جارٍ الدخول…" : "دخول"}
             </Button>
           </form>
+          )}
 
           <p className="text-label text-muted text-center mt-8">
             ما عندك حساب؟{" "}
