@@ -9,11 +9,15 @@ import {
   markPendingSupportEscalation,
   processAgentTurn
 } from "@qanoai/ai";
+import { SalesConversationService } from "../marketing/sales/sales-conversation.service";
 
 @Injectable()
 export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
-  constructor(private readonly evolutionProvider: EvolutionProvider) {}
+  constructor(
+    private readonly evolutionProvider: EvolutionProvider,
+    private readonly salesConversation: SalesConversationService
+  ) {}
   
   async processEvolutionWebhook(payload: any, headers: any, query?: any): Promise<any> {
     const event = await this.evolutionProvider.validateWebhook(payload, headers, query);
@@ -68,6 +72,21 @@ export class WebhooksService {
     if (state.status === "DISCONNECTED") data.lastDisconnectedAt = new Date();
 
     await prisma.channelConnection.update({ where: { id: connection.id }, data });
+
+    // Guard marketing campaigns when WhatsApp drops: pause any RUNNING
+    // campaign on this connection so we never lose progress or blindly
+    // retry. Normal support behavior is unaffected. Resume is explicit.
+    if (["DISCONNECTED", "LOGGED_OUT", "ERROR"].includes(state.status)) {
+      try {
+        await prisma.campaign.updateMany({
+          where: { organizationId: connection.organizationId, channelConnectionId: connection.id, status: "RUNNING" },
+          data: { status: "PAUSED", pausedAt: new Date() },
+        });
+      } catch (error: any) {
+        this.logger.warn(`Failed to pause campaigns on disconnect: ${error?.message}`);
+      }
+    }
+
     this.safeEmitToOrganization(connection.organizationId, "whatsapp:connection", {
       id: connection.id,
       status: state.status,
@@ -130,6 +149,25 @@ export class WebhooksService {
       providerStatus: message.providerStatus,
       isAiGenerated: message.isAiGenerated
     });
+
+    // Marketing sales branch: if this conversation was created by a campaign
+    // (carries salesContext), the AI Sales Agent handles it instead of the
+    // support agent. Fail-open — any error falls through to normal support.
+    if ((conversation.metadata as any)?.salesContext) {
+      try {
+        const handledBySales = await this.salesConversation.handleInbound({
+          organizationId: connection.organizationId,
+          conversation,
+          contact,
+          connection,
+          messageText: event.message.text,
+          inboundMessageId: message.id,
+        });
+        if (handledBySales) return;
+      } catch (error: any) {
+        this.logger.error(`Sales branch failed, falling back to support: ${error?.message}`);
+      }
+    }
 
     if (!["HUMAN_ONLY", "PAUSED"].includes(conversation.mode)) {
       const agent = await prisma.aiAgent.findFirst({ where: { organizationId: connection.organizationId, status: "ACTIVE" } });
