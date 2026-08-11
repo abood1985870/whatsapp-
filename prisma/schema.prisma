@@ -762,6 +762,11 @@ model Message {
   deletedAt           DateTime?
   isInternal          Boolean  @default(false)
   isAiGenerated       Boolean  @default(false)
+  // Marks a message as outbound marketing rather than a reply to a customer.
+  // The outbound caps (daily ceiling, per-contact frequency, quiet hours) count
+  // only these — applying them to support replies would stop an agent
+  // answering a question at 10pm, which is the opposite of the intent.
+  isMarketing         Boolean  @default(false)
   aiRunId             String?
   metadata            Json?
   createdAt           DateTime @default(now())
@@ -783,6 +788,8 @@ model Message {
   @@index([createdAt])
   @@index([direction])
   @@index([senderType])
+  @@index([organizationId, isMarketing, createdAt])
+  @@index([contactId, isMarketing, createdAt])
   @@map("messages")
 }
 
@@ -2021,6 +2028,16 @@ model MarketingSettings {
   discoveryProvider            String   @default("MOCK")
   sendDelaySeconds             Int      @default(3)
   canaryMaxRecipients          Int      @default(20)
+
+  // Outbound safety limits, enforced by OutboundGuardService.
+  // Marketing only — a reply to a customer who just messaged is never held back
+  // by a quiet hour or a frequency cap.
+  dailyOutboundCap             Int      @default(1000)
+  perContactMinIntervalHours   Int      @default(20)
+  quietHoursStart              Int      @default(22)  // 22:00 Asia/Riyadh
+  quietHoursEnd                Int      @default(8)   // 08:00 Asia/Riyadh
+  quietHoursEnabled            Boolean  @default(true)
+
   createdAt                    DateTime @default(now())
   updatedAt                    DateTime @updatedAt
 

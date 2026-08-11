@@ -15,7 +15,8 @@
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",
     "db:sync-permissions": "tsx src/sync-permissions.cli.ts",
-    "db:apply-2fa-column": "tsx src/apply-2fa-column.ts"
+    "db:apply-2fa-column": "tsx src/apply-2fa-column.ts",
+    "db:apply-outbound-safety": "tsx src/apply-outbound-safety.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",

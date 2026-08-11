@@ -3,6 +3,7 @@ import { prisma } from "@qanoai/database";
 import { EvolutionProvider } from "../../whatsapp/providers/evolution.provider";
 import { MarketingSettingsService } from "../settings/marketing-settings.service";
 import { formatSarMinor } from "./discount.service";
+import { OutboundGuardService } from "../../whatsapp/outbound-guard.service";
 
 /**
  * Sends the owner a single WhatsApp alert per hot lead (deduped by
@@ -12,7 +13,7 @@ import { formatSarMinor } from "./discount.service";
 export class HotLeadService {
   private readonly logger = new Logger(HotLeadService.name);
 
-  constructor(
+  constructor(private readonly outboundGuard: OutboundGuardService, 
     private readonly evolutionProvider: EvolutionProvider,
     private readonly settings: MarketingSettingsService
   ) {}

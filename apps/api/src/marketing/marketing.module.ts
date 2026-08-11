@@ -9,6 +9,7 @@ import { ProductsController } from "./products/products.controller";
 import { ProductsService } from "./products/products.service";
 import { DncController } from "./dnc/dnc.controller";
 import { DncService } from "./dnc/dnc.service";
+import { StrandedRecipientReaperService } from "./campaigns/stranded-recipient-reaper.service";
 import { LeadsController } from "./leads/leads.controller";
 import { LeadsService } from "./leads/leads.service";
 import { LeadImportService } from "./leads/lead-import.service";
@@ -42,6 +43,7 @@ import { MarketingAnalyticsService } from "./analytics/marketing-analytics.servi
     MarketingSettingsService,
     ProductsService,
     DncService,
+    StrandedRecipientReaperService,
     LeadsService,
     LeadImportService,
     MockDiscoveryProvider,
@@ -64,6 +66,9 @@ import { MarketingAnalyticsService } from "./analytics/marketing-analytics.servi
     DiscountService,
     LeadsService,
     HotLeadService,
+    // Exported so opt-out detection can run on EVERY inbound message, not only
+    // messages that happen to belong to a sales conversation.
+    DncService,
   ],
 })
 export class MarketingModule {}

@@ -12,13 +12,17 @@ import {
   checkConversationTurnLimit
 } from "@qanoai/ai";
 import { SalesConversationService } from "../marketing/sales/sales-conversation.service";
+import { DncService } from "../marketing/dnc/dnc.service";
+import { OutboundGuardService } from "../whatsapp/outbound-guard.service";
 
 @Injectable()
 export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
   constructor(
     private readonly evolutionProvider: EvolutionProvider,
-    private readonly salesConversation: SalesConversationService
+    private readonly salesConversation: SalesConversationService,
+    private readonly dnc: DncService,
+    private readonly outboundGuard: OutboundGuardService
   ) {}
   
   async processEvolutionWebhook(payload: any, headers: any, query?: any): Promise<any> {
@@ -139,6 +143,24 @@ export class WebhooksService {
     });
     conversation = await prisma.conversation.update({ where: { id: conversation.id }, data: { lastMessageAt: new Date(), status: "OPEN" } });
     this.logger.log(`Processed incoming message from ${event.phoneNumber} in conversation ${conversation.id}`);
+
+    // Opt-out, for EVERY conversation.
+    //
+    // This ran only inside the sales path, which requires a salesContext on the
+    // conversation. A customer in an ordinary support thread who wrote
+    // "أوقفوا الرسائل" was never recorded as having opted out, so the next
+    // campaign messaged them anyway — and the person had done exactly what we
+    // asked them to do to make it stop.
+    if (this.dnc.detectOptOutIntent(event.message.text)) {
+      await this.dnc
+        .addNormalized(connection.organizationId, contact.primaryPhone, "customer opt-out", null, "OPT_OUT")
+        .catch((e: any) => this.logger.warn(`Could not record opt-out: ${e?.message}`));
+      await prisma.contact.updateMany({
+        where: { id: contact.id, organizationId: connection.organizationId },
+        data: { consentStatus: "OPTED_OUT", marketingOptOutAt: new Date() },
+      });
+      this.logger.log(`Recorded opt-out for contact ${contact.id}`);
+    }
 
     const contactPayload = { name: contact.name, primaryPhone: contact.primaryPhone, avatarUrl: contact.avatarUrl };
     this.safeEmitToOrganization(connection.organizationId, isNewConversation ? "conversation:new" : "conversation:updated", {
@@ -348,17 +370,35 @@ export class WebhooksService {
       });
 
       if (agent?.supportPhoneNumber && updated.connection.providerInstanceId) {
-        await this.evolutionProvider.sendText({
-          instanceId: updated.connection.providerInstanceId,
-          phoneNumber: agent.supportPhoneNumber,
-          text: [
-            "تنبيه دعم فني",
-            `العميل: ${updated.contact.name || "بدون اسم"}`,
-            `رقم العميل: ${updated.contact.primaryPhone}`,
-            `السؤال: ${input.content}`,
-            `المحادثة: ${process.env.APP_URL || "https://qanoai-whatsappsupport.vercel.app"}/app/inbox/${input.conversationId}`
-          ].join("\n")
+        // The alert no longer carries the customer's number or their question.
+        //
+        // supportPhoneNumber is a free-text field an admin types; nothing
+        // verifies that the person holding it works here, and a typo sends a
+        // stranger a named customer's phone number and whatever they just
+        // asked — which may be an order number, an address, or a complaint.
+        // The link requires a login, so the details stay behind authentication
+        // where they belong.
+        const alertGate = await this.outboundGuard.check({
+          organizationId: input.organizationId,
+          toPhone: agent.supportPhoneNumber,
+          kind: "SYSTEM_NOTICE",
         });
+
+        if (alertGate.allowed) {
+          await this.evolutionProvider
+            .sendText({
+              instanceId: updated.connection.providerInstanceId,
+              phoneNumber: agent.supportPhoneNumber,
+              text: [
+                "تنبيه: محادثة تنتظر ردّك",
+                "فيه عميل يحتاج موظف بشري.",
+                `افتح المحادثة: ${process.env.APP_URL || "https://qanoai-whatsappsupport.vercel.app"}/app/inbox/${input.conversationId}`,
+              ].join("\n"),
+            })
+            .catch((e: any) => this.logger.warn(`Support alert failed: ${e?.message}`));
+        } else {
+          this.logger.warn(`Support alert blocked: ${alertGate.reason}`);
+        }
       }
 
       this.safeEmitToOrganization(input.organizationId, "conversation:updated", {

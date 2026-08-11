@@ -6,6 +6,7 @@ import { DncService } from "../dnc/dnc.service";
 import { MarketingSettingsService } from "../settings/marketing-settings.service";
 import { MarketingEntitlementsService } from "../entitlements.service";
 import { MARKETING_CAPABILITIES } from "@qanoai/permissions";
+import { OutboundGuardService } from "../../whatsapp/outbound-guard.service";
 
 export interface SendOutcome {
   sent: boolean;
@@ -27,7 +28,7 @@ export interface SendOutcome {
 export class MarketingSendService {
   private readonly logger = new Logger(MarketingSendService.name);
 
-  constructor(
+  constructor(private readonly outboundGuard: OutboundGuardService, 
     private readonly evolutionProvider: EvolutionProvider,
     private readonly dnc: DncService,
     private readonly settings: MarketingSettingsService,
@@ -104,6 +105,20 @@ export class MarketingSendService {
         await this.markSkipped(recipient.id, "SKIPPED_DNC");
         return { sent: false, skippedReason: "CONTACT_OPTED_OUT" };
       }
+
+      // The shared gate: kill switch, DNC, daily ceiling, per-contact frequency
+      // and quiet hours, all in one place. Checked per recipient rather than
+      // once per campaign, so a limit reached mid-run stops the rest of it.
+      const gate = await this.outboundGuard.check({
+        organizationId,
+        toPhone: lead.rawPhone,
+        kind: "MARKETING",
+        contactId: contact.id,
+      });
+      if (!gate.allowed) {
+        await this.markSkipped(recipient.id, `SKIPPED_${gate.reason}`);
+        return { sent: false, skippedReason: gate.reason };
+      }
       if (lead.contactId !== contact.id) {
         await prisma.lead.update({ where: { id: lead.id }, data: { contactId: contact.id } });
       }
@@ -146,13 +161,29 @@ export class MarketingSendService {
           text: recipient.personalizedMessage,
           providerStatus: "PENDING",
           isAiGenerated: true,
+          isMarketing: true,
           metadata: { campaignId: campaign.id, recipientId: recipient.id, kind: "MARKETING_OUTREACH" },
         },
       });
 
+      // Send to the LEAD's strictly-normalised number, not the contact's legacy
+      // one.
+      //
+      // The contact row is matched by `normalizePhone`, the older and looser
+      // function kept for inbox identity. The lead carries `normalizedPhone`
+      // from `normalizePhoneStrict`, which is what was validated on import. When
+      // the two disagree — and they disagree exactly on the malformed numbers
+      // where it matters — the message went to whatever the loose function
+      // produced. That is how a campaign reaches a number nobody entered.
+      const sendToPhone = lead.normalizedPhone || contact.normalizedPhone;
+      if (!sendToPhone) {
+        await this.markSkipped(recipient.id, "SKIPPED_NO_VALID_PHONE");
+        return { sent: false, skippedReason: "NO_VALID_PHONE" };
+      }
+
       const result = await this.evolutionProvider.sendText({
         instanceId: connection.providerInstanceId,
-        phoneNumber: contact.normalizedPhone,
+        phoneNumber: sendToPhone,
         text: recipient.personalizedMessage,
       });
 
