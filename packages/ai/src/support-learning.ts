@@ -1,5 +1,6 @@
 import { prisma } from '@qanoai/database';
 import { normalizePhone } from '@qanoai/shared';
+import { maskPII } from './safety';
 
 export interface PendingSupportEscalation {
   agentId: string;
@@ -159,14 +160,25 @@ export async function learnFromSupportReply(input: {
     data: {
       organizationId: conversation.organizationId,
       agentId: agent.learningScope === 'AGENT' ? agent.id : null,
-      question: pending.question,
-      answer,
+      // Both sides are masked. The question is a customer's own words and the
+      // answer is a support person's reply typed in a hurry — either can carry
+      // an email, a card number or an id, and this row becomes retrieval
+      // context that the AI can quote back to a DIFFERENT customer later.
+      question: maskPII(pending.question),
+      answer: maskPII(answer),
       category: 'Auto-learned',
       language: agent.defaultLanguage || 'ar',
       source: input.source,
       sourceConversationId: input.conversationId,
       sourceMessageId: input.sourceMessageId,
-      isActive: true
+      // Pending review, NOT live.
+      //
+      // This wrote isActive: true, so a single reply from the support phone
+      // became something the AI would repeat to every future customer who asked
+      // a similar question — with no one having approved it. A wrong answer, a
+      // stale price, or a message meant for one person entered the knowledge
+      // base permanently and silently. Someone has to say yes first.
+      isActive: false
     }
   });
 }

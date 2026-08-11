@@ -56,6 +56,30 @@ export class KnowledgeController {
     return this.knowledgeService.createFaq({ ...dto, organizationId });
   }
 
+  @Get("faq/pending")
+  @UseGuards(PermissionGuard)
+  @RequirePermission("knowledge.read")
+  @ApiOperation({ summary: "Answers the AI learned from support replies, awaiting review" })
+  async listPendingFaq(@CurrentOrganization() organizationId: string) {
+    return this.knowledgeService.findPendingFaq(organizationId);
+  }
+
+  @Post("faq/:id/approve")
+  @UseGuards(PermissionGuard)
+  @RequirePermission("knowledge.upload")
+  @ApiOperation({ summary: "Publish a learned answer to the knowledge base" })
+  async approveFaq(@Param("id") id: string, @CurrentOrganization() organizationId: string) {
+    return this.knowledgeService.approveFaq(id, organizationId);
+  }
+
+  @Delete("faq/:id")
+  @UseGuards(PermissionGuard)
+  @RequirePermission("knowledge.delete")
+  @ApiOperation({ summary: "Discard a learned answer" })
+  async rejectFaq(@Param("id") id: string, @CurrentOrganization() organizationId: string) {
+    return this.knowledgeService.rejectFaq(id, organizationId);
+  }
+
   @Post("bases/:id/sync")
   @UseGuards(PermissionGuard)
   @RequirePermission("knowledge.upload")

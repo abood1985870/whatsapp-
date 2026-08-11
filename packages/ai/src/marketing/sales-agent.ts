@@ -2,6 +2,7 @@ import type { ChatCompletionMessageParam } from "openai/resources/chat/completio
 import { buildHandoffSummaryPrompt, buildSalesAgentSystemPrompt, MARKETING_PROMPT_VERSION, ProductPromptContext } from "./prompts";
 import { structuredCall } from "./structured";
 import { generateChatCompletion } from "../chat";
+import { containsUntrustedUrl, mentionsDiscount, mentionsPrice } from "../output-guard";
 
 export type SalesDecision = "REPLY" | "OFFER_DISCOUNT" | "CUSTOM_SOFTWARE" | "HANDOFF" | "NO_REPLY";
 
@@ -90,7 +91,7 @@ export async function processSalesTurn(context: SalesTurnContext): Promise<Sales
       if (raw.decision === "REPLY") {
         if (!reply || reply.length < 2 || reply.length > 2000) return null;
         if (containsUnauthorizedNumbers(reply, context.product)) return null;
-        if (containsUntrustedUrl(reply, context.product)) return null;
+        if (containsUntrustedUrl(reply, context.product.trustedUrls.map((u) => u.url))) return null;
       }
       const confidence = Number(raw.confidence);
       return {
@@ -136,12 +137,7 @@ function containsUnauthorizedNumbers(reply: string, product: ProductPromptContex
   return false;
 }
 
-function containsUntrustedUrl(reply: string, product: ProductPromptContext): boolean {
-  const urls = reply.match(/https?:\/\/[^\s)»<>"']+/gi) ?? [];
-  if (urls.length === 0) return false;
-  const trusted = product.trustedUrls.map((t) => t.url.replace(/\/+$/, ""));
-  return urls.some((u) => !trusted.includes(u.replace(/\/+$/, "")));
-}
+
 
 export async function generateHandoffSummary(input: {
   productName: string;

@@ -8,7 +8,8 @@ import {
   claimPendingSupportEscalation,
   learnFromSupportReply,
   markPendingSupportEscalation,
-  processAgentTurn
+  processAgentTurn,
+  checkConversationTurnLimit
 } from "@qanoai/ai";
 import { SalesConversationService } from "../marketing/sales/sales-conversation.service";
 
@@ -236,6 +237,33 @@ export class WebhooksService {
       return;
     }
 
+    // Per-conversation ceiling, checked BEFORE the model is called.
+    //
+    // The existing action limit counted AiRun rows, but rows were only written
+    // for REPLY and HANDOFF — every other decision spent a model call and left
+    // no trace. So the exact runaway the cap exists to stop (two automated
+    // systems answering each other, each turn ending in a decision that writes
+    // nothing) could never reach it.
+    if (!(await checkConversationTurnLimit(input.conversationId))) {
+      this.logger.warn(
+        `Conversation ${input.conversationId} hit the AI turn limit - handing to a human instead of replying`
+      );
+      await prisma.conversation.updateMany({
+        where: { id: input.conversationId, organizationId: input.organizationId },
+        data: { status: "WAITING_FOR_AGENT", handoffReason: "AI_TURN_LIMIT_REACHED" }
+      });
+      await this.recordAiRun({
+        organizationId: input.organizationId,
+        agentId: input.agentId,
+        conversationId: input.conversationId,
+        decision: "TURN_LIMIT",
+        content: input.content,
+        latencyMs: 0,
+        errorMessage: "AI_TURN_LIMIT_REACHED"
+      });
+      return;
+    }
+
     const startedAt = Date.now();
     const response = await processAgentTurn({
       organizationId: input.organizationId,
@@ -342,7 +370,56 @@ export class WebhooksService {
         lastMessageAt: updated.lastMessageAt
       });
       this.safeEmitToOrganization(input.organizationId, "message:new", this.messagePayload(handoffMessage));
+      return;
     }
+
+    // Any other decision still consumed a model call. Recording it is what makes
+    // the turn cap and the per-organization cost total mean anything.
+    await this.recordAiRun({
+      organizationId: input.organizationId,
+      agentId: input.agentId,
+      conversationId: input.conversationId,
+      decision: response.decision,
+      content: input.content,
+      latencyMs,
+      confidence: response.confidence,
+      errorMessage: response.reason,
+      tokenUsage: response.tokenUsage,
+      costUsd: response.costUsd
+    });
+  }
+
+  /** One place that writes an AiRun row, so no decision path can forget to. */
+  private async recordAiRun(input: {
+    organizationId: string;
+    agentId: string;
+    conversationId: string;
+    decision: string;
+    content: string;
+    latencyMs: number;
+    confidence?: number;
+    errorMessage?: string;
+    tokenUsage?: number;
+    costUsd?: number;
+  }): Promise<void> {
+    await prisma.aiRun
+      .create({
+        data: {
+          organizationId: input.organizationId,
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+          status: "COMPLETED",
+          decision: input.decision,
+          confidence: input.confidence ?? 0,
+          input: input.content?.slice(0, 4000),
+          errorMessage: input.errorMessage,
+          tokenUsage: input.tokenUsage !== undefined ? { total: input.tokenUsage } : undefined,
+          costUsd: input.costUsd,
+          latencyMs: input.latencyMs,
+          completedAt: new Date()
+        }
+      })
+      .catch((e: any) => this.logger.warn(`Could not record AI run: ${e?.message}`));
   }
 
   private async createAndSendAiMessage(input: { organizationId: string; conversation: any; text: string }) {

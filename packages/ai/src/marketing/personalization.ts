@@ -1,5 +1,6 @@
 import { buildPersonalizationPrompt, buildWebsiteSummaryPrompt, MARKETING_PROMPT_VERSION, ProductPromptContext } from "./prompts";
 import { structuredCall } from "./structured";
+import { containsUntrustedUrl, mentionsDiscount, mentionsPrice } from "../output-guard";
 
 export interface WebsiteSummaryResult {
   businessSummary: string;
@@ -93,9 +94,15 @@ export async function generatePersonalizedMessage(input: {
     validate: (raw) => {
       const message = typeof raw?.message === "string" ? raw.message.trim() : "";
       if (message.length < 30 || message.length > 1200) return null;
-      // hard content guards: no prices/discount talk in the first message
-      if (/خصم|discount|%\s*\d|\d+\s*%/.test(message)) return null;
-      if (/ريال|سعر\s*:|\bSAR\b/.test(message)) return null;
+      // Hard content guards: no prices or discount talk in a first-touch
+      // message. These were previously written against ASCII digits and needed
+      // a currency word, so "خصم ٢٠٪" and "السعر ٢٥٠٠" both passed — which is
+      // exactly what an Arabic model writes.
+      if (mentionsDiscount(message)) return null;
+      if (mentionsPrice(message)) return null;
+      // A URL the model produced is never trustworthy; only backend-injected
+      // links may reach a customer.
+      if (containsUntrustedUrl(message)) return null;
       const confidence = Number(raw.confidence);
       return {
         message,

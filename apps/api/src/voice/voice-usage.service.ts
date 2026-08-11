@@ -4,6 +4,9 @@ import { config } from "@qanoai/config";
 import { generateCorrelationId } from "@qanoai/shared";
 import { AuditService } from "../audit/audit.service";
 
+/** 1 USD ≈ 3.75 SAR = 375 halalas. Same rate the campaign accounting uses. */
+const USD_TO_HALALAS = 375;
+
 export interface CallCostInputs {
   telephonySeconds: number;
   aiAudioSeconds: number;
@@ -129,6 +132,20 @@ export class VoiceUsageService {
       select: { estimatedCostMinor: true, actualCostMinor: true },
     });
     // Prefer the actual figure where the provider gave us one.
-    return rows.reduce((sum, r) => sum + (r.actualCostMinor ?? r.estimatedCostMinor), 0);
+    const voiceSpend = rows.reduce((sum, r) => sum + (r.actualCostMinor ?? r.estimatedCostMinor), 0);
+
+    // Model spend counts against the same budget.
+    //
+    // The breaker measured telephony and realtime-audio minutes only, so every
+    // chat completion the organization made — support replies, summaries, sales
+    // personalization — was invisible to it. An organization could sit at zero
+    // "voice spend" while its actual OpenAI bill ran away.
+    const aiRuns = await prisma.aiRun.aggregate({
+      where: { organizationId, createdAt: { gte: since } },
+      _sum: { costUsd: true },
+    });
+    const aiSpendMinor = Math.round((Number(aiRuns._sum.costUsd) || 0) * USD_TO_HALALAS);
+
+    return voiceSpend + aiSpendMinor;
   }
 }

@@ -84,8 +84,41 @@ export class KnowledgeService {
     }); 
   }
   
-  async findFaq(organizationId: string): Promise<any> { 
-    return prisma.faqEntry.findMany({ where: { organizationId, isActive: true }, orderBy: { createdAt: "desc" } }); 
+  async findFaq(organizationId: string): Promise<any> {
+    return prisma.faqEntry.findMany({ where: { organizationId, isActive: true }, orderBy: { createdAt: "desc" } });
+  }
+
+  /**
+   * Answers the AI learned from a support reply, waiting for a human to say yes.
+   *
+   * Auto-learned entries used to be written live, so one reply from the support
+   * phone silently became something the AI would repeat to every future customer
+   * who asked something similar. They are now inactive on creation, which means
+   * there has to be somewhere to see and approve them — this is it.
+   */
+  async findPendingFaq(organizationId: string): Promise<any> {
+    return prisma.faqEntry.findMany({
+      where: { organizationId, isActive: false, category: "Auto-learned" },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+  }
+
+  async approveFaq(id: string, organizationId: string): Promise<any> {
+    const approved = await prisma.faqEntry.updateMany({
+      where: { id, organizationId, isActive: false },
+      data: { isActive: true },
+    });
+    if (approved.count === 0) throw new NotFoundException("FAQ_NOT_FOUND");
+    return { success: true };
+  }
+
+  async rejectFaq(id: string, organizationId: string): Promise<any> {
+    const removed = await prisma.faqEntry.deleteMany({
+      where: { id, organizationId, isActive: false },
+    });
+    if (removed.count === 0) throw new NotFoundException("FAQ_NOT_FOUND");
+    return { success: true };
   }
   
   async createFaq(data: any): Promise<any> { 

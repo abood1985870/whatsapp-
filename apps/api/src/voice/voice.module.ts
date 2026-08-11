@@ -21,6 +21,7 @@ import { SimulationVoiceProvider } from "./providers/simulation-voice.provider";
 import { TwilioVoiceProvider } from "./providers/twilio-voice.provider";
 import { OpenAiRealtimeProvider } from "./providers/openai-realtime.provider";
 import { VoiceToolExecutorService } from "./tools/voice-tool-executor.service";
+import { StaleCallSweeperService } from "./stale-call-sweeper.service";
 
 @Module({
   imports: [AuditModule, WhatsAppModule, MarketingModule],
@@ -28,6 +29,7 @@ import { VoiceToolExecutorService } from "./tools/voice-tool-executor.service";
   providers: [
     VoiceGuard,
     VoiceProviderRegistry,
+    StaleCallSweeperService,
     SimulationVoiceProvider,
     TwilioVoiceProvider,
     OpenAiRealtimeProvider,
