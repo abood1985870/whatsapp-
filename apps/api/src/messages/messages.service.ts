@@ -3,7 +3,7 @@ import { prisma } from "@qanoai/database";
 import { generateCorrelationId } from "@qanoai/shared";
 import { emitToOrganization } from "@qanoai/queue";
 import { EvolutionProvider } from "../whatsapp/providers/evolution.provider";
-import { learnFromSupportReply } from "@qanoai/ai";
+import { learnFromSupportReply, claimPendingSupportEscalation } from "@qanoai/ai";
 
 @Injectable()
 export class MessagesService {
@@ -75,12 +75,19 @@ export class MessagesService {
         clientIdempotencyKey: generateCorrelationId()
       }
     });
-    await learnFromSupportReply({
-      conversationId: dto.conversationId,
-      answer: dto.text,
-      sourceMessageId: message.id,
-      source: "INBOX_HUMAN_REPLY"
-    });
+    // A human answering in the inbox settles the escalation too — otherwise the
+    // support person's phone stays armed and their next unrelated message gets
+    // forwarded to this customer.
+    const claimedEscalation = await claimPendingSupportEscalation(dto.conversationId);
+    if (claimedEscalation) {
+      await learnFromSupportReply({
+        conversationId: dto.conversationId,
+        answer: dto.text,
+        sourceMessageId: message.id,
+        source: "INBOX_HUMAN_REPLY",
+        pending: claimedEscalation
+      });
+    }
     await prisma.conversation.update({ where: { id: dto.conversationId }, data: { lastMessageAt: new Date(), status: "WAITING_FOR_CUSTOMER" } });
     emitToOrganization(dto.organizationId, "message:new", {
       id: message.id,

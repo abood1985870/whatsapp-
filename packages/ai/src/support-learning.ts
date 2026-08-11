@@ -74,11 +74,57 @@ export async function findPendingEscalationForSupportPhone(input: {
   }) || null;
 }
 
+/**
+ * Consume a pending escalation, exactly once.
+ *
+ * The flag was previously set and never cleared, so a conversation stayed in
+ * "waiting for the support person's answer" forever. Every subsequent message
+ * that person sent from their own phone — to anyone, about anything — was
+ * matched against that open escalation and forwarded verbatim to the customer.
+ *
+ * The status check lives inside the UPDATE's WHERE clause rather than in a
+ * read-then-write, so two replies arriving at once cannot both claim it: the
+ * database decides, and the loser gets a count of 0.
+ */
+export async function claimPendingSupportEscalation(
+  conversationId: string
+): Promise<PendingSupportEscalation | null> {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { metadata: true }
+  });
+  if (!conversation) return null;
+
+  const pending = getPendingSupportEscalation(conversation.metadata);
+  if (!pending) return null;
+
+  const claimed = await prisma.conversation.updateMany({
+    where: {
+      id: conversationId,
+      metadata: { path: ['pendingSupportEscalation', 'status'], equals: 'PENDING' }
+    },
+    data: {
+      metadata: {
+        ...asRecord(conversation.metadata),
+        pendingSupportEscalation: {
+          ...pending,
+          status: 'ANSWERED',
+          answeredAt: new Date().toISOString()
+        }
+      }
+    }
+  });
+
+  return claimed.count === 1 ? pending : null;
+}
+
 export async function learnFromSupportReply(input: {
   conversationId: string;
   answer: string;
   sourceMessageId?: string;
   source: 'WHATSAPP_SUPPORT_REPLY' | 'INBOX_HUMAN_REPLY';
+  /** Supplied by callers that already claimed the escalation and cleared the flag. */
+  pending?: PendingSupportEscalation | null;
 }): Promise<any | null> {
   const answer = input.answer.trim();
   if (!answer) return null;
@@ -89,7 +135,7 @@ export async function learnFromSupportReply(input: {
   });
   if (!conversation) return null;
 
-  const pending = getPendingSupportEscalation(conversation.metadata);
+  const pending = input.pending ?? getPendingSupportEscalation(conversation.metadata);
   if (!pending?.question?.trim()) return null;
 
   const agent = await prisma.aiAgent.findUnique({

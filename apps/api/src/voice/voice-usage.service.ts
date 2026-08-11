@@ -63,9 +63,28 @@ export class VoiceUsageService {
    * Circuit breaker consulted BEFORE a new expensive session starts.
    * In-flight calls are never cut off by a budget check.
    */
-  async isOverBudget(organizationId: string): Promise<{ blocked: boolean; scope?: "DAILY" | "MONTHLY" }> {
+  async isOverBudget(
+    organizationId: string
+  ): Promise<{ blocked: boolean; scope?: "DAILY" | "MONTHLY" | "UNPRICED" }> {
     const settings = await prisma.voiceSettings.findUnique({ where: { organizationId } });
     if (!settings?.dailyBudgetMinor && !settings?.monthlyBudgetMinor) return { blocked: false };
+
+    // FAIL CLOSED. Both rates default to 0, so every estimate was 0, every
+    // spend total was 0, and a configured budget could never be reached — the
+    // breaker was wired up and permanently disarmed. An organization that set a
+    // budget asked for a spending limit; refusing calls is the correct answer
+    // when we cannot price them, not letting them run unmetered.
+    if (
+      config.VOICE_TELEPHONY_COST_PER_MINUTE_MINOR <= 0 &&
+      config.VOICE_AI_COST_PER_MINUTE_MINOR <= 0
+    ) {
+      this.logger.error(
+        `Voice budget is set for org ${organizationId} but VOICE_TELEPHONY_COST_PER_MINUTE_MINOR ` +
+          `and VOICE_AI_COST_PER_MINUTE_MINOR are both 0 — calls are blocked because spend cannot ` +
+          `be measured. Set both rates in the environment.`
+      );
+      return { blocked: true, scope: "UNPRICED" };
+    }
 
     const now = new Date();
     if (settings.dailyBudgetMinor) {

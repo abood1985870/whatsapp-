@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
+import { syncPermissions } from "./sync-permissions";
 
 const prisma = new PrismaClient();
 
@@ -49,7 +50,16 @@ async function main() {
   for (const perm of permissions) {
     await prisma.permission.upsert({ where: { code: perm.code }, update: {}, create: perm });
   }
-  console.log("✅ Permissions created");
+
+  // The list above is legacy and had drifted from the codes the API actually
+  // checks. syncPermissions reconciles the catalogue and every system role
+  // against packages/permissions, which is the source of truth. It runs at
+  // deploy time too - `pnpm --filter @qanoai/database db:sync-permissions`.
+  const sync = await syncPermissions(prisma);
+  console.log(
+    `✅ Permissions synced (+${sync.permissionsInserted} codes, +${sync.grantsAdded} grants, ` +
+    `-${sync.grantsRemoved} stale grants, +${sync.rolesCreated} roles)`
+  );
 
   // Create roles
   const roles = [

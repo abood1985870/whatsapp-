@@ -215,7 +215,11 @@ export class CampaignDispatchService {
         select: { metadata: true },
       });
       const usd = events.reduce((acc, e) => acc + (Number((e.metadata as any)?.costUsd) || 0), 0);
-      return Math.round(usd * 375 * 100); // USD → SAR halalas, approx 3.75 SAR/USD
+      // 1 USD ≈ 3.75 SAR = 375 halalas. The extra ×100 that used to be here
+      // applied the minor-unit conversion twice, so spend was reported at 100×
+      // its real value and every campaign halted once it had used 1% of its
+      // budget.
+      return Math.round(usd * 375);
     };
 
     if (settings.dailyAiBudgetMinor && (await sumCost(dayStart)) >= settings.dailyAiBudgetMinor) return true;

@@ -5,6 +5,7 @@ import { EvolutionProvider } from "../whatsapp/providers/evolution.provider";
 import { normalizePhone, generateCorrelationId } from "@qanoai/shared";
 import {
   findPendingEscalationForSupportPhone,
+  claimPendingSupportEscalation,
   learnFromSupportReply,
   markPendingSupportEscalation,
   processAgentTurn
@@ -412,6 +413,14 @@ export class WebhooksService {
     const answer = String(event.message?.text || "").trim();
     if (!answer) return true;
 
+    // Claim the escalation BEFORE forwarding. If it has already been answered,
+    // this message is just the support person using their own phone normally —
+    // it must not be relayed to the customer. Claiming first also means a
+    // failure below cannot leave the escalation open for the next message to
+    // pick up.
+    const claimed = await claimPendingSupportEscalation(supportConversation.id);
+    if (!claimed) return false;
+
     let providerStatus = "PENDING";
     let providerMessageId: string | undefined;
     try {
@@ -448,7 +457,8 @@ export class WebhooksService {
       conversationId: supportConversation.id,
       answer,
       sourceMessageId: message.id,
-      source: "WHATSAPP_SUPPORT_REPLY"
+      source: "WHATSAPP_SUPPORT_REPLY",
+      pending: claimed
     });
 
     const updated = await prisma.conversation.update({

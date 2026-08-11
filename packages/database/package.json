@@ -13,12 +13,14 @@
     "db:bootstrap-marketing": "tsx src/bootstrap-marketing.ts",
     "db:reset": "prisma migrate reset --force --schema=../../prisma/schema.prisma",
     "lint": "eslint src/**/*.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:sync-permissions": "tsx src/sync-permissions.cli.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
     "bcryptjs": "^2.4.3",
-    "prisma": "^5.14.0"
+    "prisma": "^5.14.0",
+    "@qanoai/permissions": "workspace:*"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
