@@ -53,6 +53,8 @@ const envSchema = z.object({
   FEATURE_BILLING_ENABLED: z.coerce.boolean().default(false),
   FEATURE_N8N_ENABLED: z.coerce.boolean().default(false),
   N8N_WEBHOOK_BASE_URL: z.string().optional(),
+  PLATFORM_OWNER_EMAIL: z.string().email().optional(),
+  GOOGLE_PLACES_API_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

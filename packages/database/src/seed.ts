@@ -36,6 +36,14 @@ async function main() {
     { code: "message.send", name: "إرسال رسالة", category: "messages" },
     { code: "message.read", name: "قراءة رسالة", category: "messages" },
     { code: "message.broadcast", name: "بث الرسائل", category: "messages" },
+    { code: "marketing.read", name: "قراءة التسويق", category: "marketing" },
+    { code: "marketing.products.manage", name: "إدارة البرامج", category: "marketing" },
+    { code: "marketing.leads.manage", name: "إدارة العملاء المحتملين", category: "marketing" },
+    { code: "marketing.campaigns.manage", name: "إدارة الحملات", category: "marketing" },
+    { code: "marketing.campaigns.start", name: "تشغيل الحملات", category: "marketing" },
+    { code: "marketing.dnc.manage", name: "إدارة قائمة عدم التواصل", category: "marketing" },
+    { code: "marketing.settings.manage", name: "إدارة إعدادات التسويق", category: "marketing" },
+    { code: "marketing.analytics.read", name: "قراءة تحليلات التسويق", category: "marketing" },
   ];
 
   for (const perm of permissions) {
@@ -64,15 +72,17 @@ async function main() {
   }
   console.log("✅ Roles created");
 
-  // Assign ALL permissions to OWNER role
+  // Assign ALL permissions to OWNER and PLATFORM_SUPER_ADMIN roles
   const allPerms = await prisma.permission.findMany();
   type SeedPermission = (typeof allPerms)[number];
-  for (const perm of allPerms) {
-    await prisma.rolePermission.upsert({
-      where: { roleId_permissionId: { roleId: createdRoles["ORGANIZATION_OWNER"], permissionId: perm.id } },
-      update: {},
-      create: { roleId: createdRoles["ORGANIZATION_OWNER"], permissionId: perm.id },
-    });
+  for (const roleName of ["ORGANIZATION_OWNER", "PLATFORM_SUPER_ADMIN"]) {
+    for (const perm of allPerms) {
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: createdRoles[roleName], permissionId: perm.id } },
+        update: {},
+        create: { roleId: createdRoles[roleName], permissionId: perm.id },
+      });
+    }
   }
 
   // Assign permissions to SUPPORT_MANAGER role

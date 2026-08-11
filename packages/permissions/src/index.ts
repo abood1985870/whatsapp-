@@ -38,9 +38,35 @@ export const PERMISSIONS = {
   INTEGRATIONS_MANAGE: "integrations.manage",
   AUDIT_READ: "audit.read",
   SETTINGS_MANAGE: "settings.manage",
+  MARKETING_READ: "marketing.read",
+  MARKETING_PRODUCTS_MANAGE: "marketing.products.manage",
+  MARKETING_LEADS_MANAGE: "marketing.leads.manage",
+  MARKETING_CAMPAIGNS_MANAGE: "marketing.campaigns.manage",
+  MARKETING_CAMPAIGNS_START: "marketing.campaigns.start",
+  MARKETING_DNC_MANAGE: "marketing.dnc.manage",
+  MARKETING_SETTINGS_MANAGE: "marketing.settings.manage",
+  MARKETING_ANALYTICS_READ: "marketing.analytics.read",
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+// Feature-entitlement keys for the AI Sales & Marketing module.
+// Stored per-organization in the `entitlements` table; AI_SALES_MODULE is
+// the master switch checked by the API guard, the rest gate sub-features.
+export const MARKETING_CAPABILITIES = {
+  AI_SALES_MODULE: "AI_SALES_MODULE",
+  PRODUCT_CATALOG: "PRODUCT_CATALOG",
+  LEAD_DISCOVERY: "LEAD_DISCOVERY",
+  LEAD_IMPORT: "LEAD_IMPORT",
+  MARKETING_CAMPAIGNS: "MARKETING_CAMPAIGNS",
+  AI_PERSONALIZATION: "AI_PERSONALIZATION",
+  AI_SALES_AGENT: "AI_SALES_AGENT",
+  DO_NOT_CONTACT: "DO_NOT_CONTACT",
+  SALES_ANALYTICS: "SALES_ANALYTICS",
+  SALES_SETTINGS: "SALES_SETTINGS",
+} as const;
+
+export type MarketingCapability = (typeof MARKETING_CAPABILITIES)[keyof typeof MARKETING_CAPABILITIES];
 
 export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
   PLATFORM_SUPER_ADMIN: Object.values(PERMISSIONS),
