@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QanoAI — تقرير المراجعة والإصلاح</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>
+  :root{
+    --qano-400:#33a597; --qano-500:#12897b; --qano-600:#0e7c6e; --qano-300:#5fbfb2;
+    --alert-400:#f5a524; --danger:#f26d6d;
+    --bg:#081214; --surface:#101b1d; --surface2:#1b2628; --line:#1e2d2f;
+    --text:#f7f9f9; --muted:#7e8d8f; --faint:#5a6a6d;
+  }
+  *{box-sizing:border-box;border-color:var(--line)}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"IBM Plex Sans Arabic","Segoe UI",system-ui,sans-serif;font-size:15px;line-height:1.75}
+  .wrap{max-width:900px;margin:0 auto;padding:0 24px 80px}
+  header{padding:64px 0 40px;border-bottom:1px solid var(--line);margin-bottom:40px}
+  .eyebrow{font-size:11.5px;font-weight:600;letter-spacing:.08em;color:var(--faint);margin:0 0 12px}
+  h1{font-size:34px;line-height:1.2;margin:0 0 12px;letter-spacing:-.02em}
+  h2{font-size:22px;margin:52px 0 16px;letter-spacing:-.01em;padding-top:8px}
+  h3{font-size:16px;margin:28px 0 8px}
+  p{margin:0 0 14px;color:#cfd8d9}
+  .lede{font-size:17px;color:var(--muted);max-width:62ch}
+  .num{font-family:"IBM Plex Mono",Consolas,monospace;direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:28px 0}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .stat .v{font-size:28px;font-weight:600;display:block;font-family:"IBM Plex Mono",monospace;direction:ltr}
+  .stat .l{font-size:12px;color:var(--muted);margin-top:4px;display:block}
+  .stat.good .v{color:var(--qano-400)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:16px 0;position:relative;overflow:hidden}
+  .card::before{content:"";position:absolute;inset-block:0;inset-inline-start:0;width:3px;background:var(--qano-500)}
+  .card.warn::before{background:var(--alert-400)}
+  .card h3{margin-top:0}
+  .fixed{display:inline-block;font-size:11.5px;font-weight:600;color:var(--qano-300);
+    background:rgba(18,137,123,.16);border-radius:5px;padding:2px 8px;margin-top:10px}
+  .todo{display:inline-block;font-size:11.5px;font-weight:600;color:var(--alert-400);
+    background:rgba(245,165,36,.14);border-radius:5px;padding:2px 8px}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14px;display:block;overflow-x:auto}
+  th,td{text-align:right;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--muted);font-weight:600;font-size:12px;letter-spacing:.03em}
+  td.ok{color:var(--qano-400)}
+  code{font-family:"IBM Plex Mono",Consolas,monospace;background:var(--surface2);
+    padding:2px 6px;border-radius:4px;font-size:13px;direction:ltr;display:inline-block}
+  .rule{display:flex;align-items:center;gap:10px;margin:8px 0;font-size:14px}
+  .dot{width:10px;height:10px;border-radius:50%;flex:none}
+  ul{padding-inline-start:22px;color:#cfd8d9}
+  li{margin:6px 0}
+  .banner{background:rgba(245,165,36,.10);border:1px solid rgba(245,165,36,.35);
+    border-radius:12px;padding:20px 22px;margin:24px 0}
+  .banner h3{color:var(--alert-400);margin-top:0}
+  footer{margin-top:64px;padding-top:24px;border-top:1px solid var(--line);color:var(--faint);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">تقرير نهائي · <span class="num">11 / 08 / 2026</span></p>
+  <h1>مراجعة وإصلاح منصة QanoAI</h1>
+  <p class="lede">
+    النظام كان فيه ثغرات تسمح لأي عميل يشوف بيانات كل العملاء الآخرين، ويرسل رسائل من أرقامهم.
+    كلها انسدّت، ومعها ٤٧ مشكلة أخرى.
+  </p>
+</header>
+
+<div class="grid">
+  <div class="stat good"><span class="v">299</span><span class="l">اختبار ناجح (كانوا 98)</span></div>
+  <div class="stat good"><span class="v">8 / 8</span><span class="l">موجات إصلاح</span></div>
+  <div class="stat"><span class="v">153</span><span class="l">ملف معدّل</span></div>
+  <div class="stat"><span class="v">11,697</span><span class="l">سطر مضاف</span></div>
+</div>
+
+<h2>أخطر خمس ثغرات كانت موجودة</h2>
+
+<div class="card">
+  <h3>١ · أي مستخدم كان يقرأ بيانات أي منشأة أخرى</h3>
+  <p>٢١ مسار في إدارة المنشآت كانت بلا حماية فعلية: الحارس يبحث عن متغيّر اسمه
+  <code>organizationId</code> والمسارات تسمّيه <code>id</code> — فما يلقى شي، ويسمح بالمرور.</p>
+  <p>ومعها: <code>GET /messages</code> كان يرجّع محادثات أي عميل، ودمج جهات الاتصال كان ينقل
+  تاريخ منشأة كامل لحساب منشأة ثانية.</p>
+  <span class="fixed">✓ مسدودة — كل استعلام صار يحمل رقم المنشأة</span>
+</div>
+
+<div class="card">
+  <h3>٢ · أي مدير منشأة كان يصير مالك المنصة</h3>
+  <p>فحص ملكية المنصة كان يقارن <strong>اسم الدور</strong> فقط. أسماء الأدوار فريدة داخل المنشأة
+  الواحدة لا على مستوى النظام — فأي عميل ينشئ دوراً بنفس الاسم ويعطيه لنفسه.</p>
+  <p>كانت غير قابلة للاستغلال بالصدفة فقط لأن الصلاحيات المطلوبة للوصول لإدارة الأدوار
+  <em>لم تُنشأ أبداً</em> في قاعدة البيانات.</p>
+  <span class="fixed">✓ مسدودة — والمسارَين أُغلقا في نفس لحظة إضافة الصلاحيات</span>
+</div>
+
+<div class="card">
+  <h3>٣ · التحقق بخطوتين كان مسجّلاً وغير مستخدَم</h3>
+  <p>من يفعّله كان يدخل بكلمة المرور وحدها. الشاشة تقول «مفعّل»، والكود ما يستشيره أبداً.</p>
+  <p>ومعه: <strong>تسجيل الخروج ما كان يسوي شي</strong> — يرجّع «تم» ويترك التوكن صالحاً
+  <span class="num">7</span> أيام، حتى بعد تغيير كلمة المرور.</p>
+  <span class="fixed">✓ مسدودة — خطوة ثانية فعلية وجلسات حقيقية تُلغى</span>
+</div>
+
+<div class="card">
+  <h3>٤ · الويب هوك العام كان مفتوحاً للجميع</h3>
+  <p>نقطة استقبال رسائل واتساب كانت تقبل أي طلب لو السر غير مضبوط — أي شخص يعرف الرابط
+  يحقن رسائل وهمية في صناديق العملاء.</p>
+  <span class="fixed">✓ الكود مسدود</span> <span class="todo">تحتاج خطوة منك ↓</span>
+</div>
+
+<div class="card">
+  <h3>٥ · رسالة واحدة كانت تجمّد النظام</h3>
+  <p>نمط فحص تربيعي التعقيد: رسالة بطول <span class="num">80,000</span> حرف =
+  <span class="num">4</span> ثوانٍ تجميد كامل، وحد الطلب يسمح بأكبر بكثير.</p>
+  <span class="fixed">✓ نفس المدخلات صارت 1–3 ملّي ثانية</span>
+</div>
+
+<div class="banner">
+  <h3>⚠ خطوة مطلوبة منك قبل النشر</h3>
+  <p><strong>ضبط <code>EVOLUTION_WEBHOOK_SECRET</code> في Railway.</strong> الترتيب مهم:</p>
+  <ul>
+    <li>انشر الكود الجديد <strong>أولاً</strong></li>
+    <li>ولّد سراً عشوائياً وضعه في متغيّرات Railway</li>
+    <li>أعد تسجيل الويب هوك: <code>POST /v1/whatsapp/connections/&lt;id&gt;/webhook</code></li>
+    <li>اختبر برسالة واتساب حقيقية</li>
+  </ul>
+  <p>لو ضبطت السر قبل النشر، <strong>واتساب الوارد يتوقف</strong> لين تعيد تسجيل الويب هوك.</p>
+  <p>تنبيه ثانٍ: كل الجلسات الحالية راح تنتهي عند النشر. الكل يسجّل دخول مرة وحدة — هذا هو الإصلاح يشتغل.</p>
+</div>
+
+<h2>الموجات الثماني</h2>
+<table>
+  <thead><tr><th>الموجة</th><th>المحتوى</th><th>الحالة</th></tr></thead>
+  <tbody>
+    <tr><td>التصميم</td><td>هوية بصرية كاملة، ٢٩ صفحة</td><td class="ok">✓ <code>1ac1265</code></td></tr>
+    <tr><td>صفر</td><td>الويب هوك، التجميد، الإشعارات، حدود الرفع</td><td class="ok">✓ <code>e506223</code></td></tr>
+    <tr><td>A</td><td>الصلاحيات، تصعيد المالك، حسابات المال</td><td class="ok">✓ <code>7910dfd</code></td></tr>
+    <tr><td>١</td><td>عزل المنشآت — أكبر موجة</td><td class="ok">✓ <code>2577b89</code></td></tr>
+    <tr><td>٢</td><td>المصادقة والجلسات</td><td class="ok">✓ <code>7d2d449</code></td></tr>
+    <tr><td>٣</td><td>تكلفة الذكاء والحقن</td><td class="ok">✓ <code>578dbd6</code></td></tr>
+    <tr><td>٤</td><td>بوابة واحدة للرسائل الصادرة</td><td class="ok">✓ <code>1a4fdb2</code></td></tr>
+    <tr><td>٥</td><td>الخصوصية والتشفير</td><td class="ok">✓ <code>9386842</code></td></tr>
+    <tr><td>٦</td><td>نظافة الإعدادات</td><td class="ok">✓ <code>371fe9c</code></td></tr>
+  </tbody>
+</table>
+
+<h2>أشياء لقيتها ما كانت في التقرير الأصلي</h2>
+<p>المراجعة الأولى قالت ١٤ صلاحية ناقصة. الحقيقة كانت <strong>٢٩</strong>: صفحات الفروع والفرق
+وقواعد التوجيه واتفاقيات الخدمة والإعدادات كانت ميتة <em>للجميع بما فيهم المالك</em>.</p>
+<ul>
+  <li><strong>زر الإيقاف الطارئ كان وهمياً</strong> — عمود في قاعدة البيانات ما يقرأه أي كود</li>
+  <li>إعدادات الاحتفاظ بالبيانات موجودة في الواجهة وما ورا شي</li>
+  <li>جدول طلبات الحذف موجود وما أحد يعالجه</li>
+  <li><code>REDIS_DISABLED="false"</code> كانت تُقرأ <em>صحيحة</em> — وهذا يلغي حد استخدام الذكاء بالكامل</li>
+  <li>رابط تحميل الملفات كان يحوّل إلى <code>undefined</code></li>
+  <li>بيانات التجربة بأرقام تشبه أرقاماً حقيقية ووضع رد آلي</li>
+</ul>
+
+<h2>الهوية الجديدة</h2>
+<p>مبنية على قاعدة واحدة: <strong>اللون يعني أن الآلة داخلة على الخط.</strong></p>
+<div class="rule"><span class="dot" style="background:var(--qano-500)"></span> أخضر — الموظف الذكي ماسكها</div>
+<div class="rule"><span class="dot" style="background:var(--alert-400)"></span> برتقالي — تنتظر ردّك</div>
+<div class="rule"><span class="dot" style="background:#5a6a6d"></span> بدون لون — إنسان ماسكها</div>
+<p style="margin-top:14px">يعني الموظف يمسح القائمة بعينه ويشوف <strong>فقط</strong> اللي يحتاجه.</p>
+<ul>
+  <li>الخط: IBM Plex Arabic بدل Cairo، ومونو لكل رقم</li>
+  <li>وضع ليلي كامل</li>
+  <li>القائمة يمين في العربي، وتنقلب يسار تلقائياً لو صارت الواجهة إنجليزية</li>
+</ul>
+
+<h2>أشياء تركتها عن قصد</h2>
+<table>
+  <thead><tr><th>البند</th><th>السبب</th></tr></thead>
+  <tbody>
+    <tr><td>رفع رقم الجوال بالخدمة</td><td>يحتاج شراء ودفع — قرارك</td></tr>
+    <tr><td>أسعار المكالمات</td><td>تحتاج أرقام عقدك مع Twilio وOpenAI</td></tr>
+    <tr><td>حد حجم JSON</td><td>تخفيضه قد يُسقط صور واتساب بصمت</td></tr>
+    <tr><td>دمج جهات الاتصال المكرّرة</td><td>عملية لمرة واحدة على بيانات حقيقية</td></tr>
+    <tr><td>اختبار الحمل</td><td>مؤجّل باتفاقنا لين يصير استخدام حقيقي</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  التفاصيل الكاملة: <code>docs/review/FINAL_REPORT.md</code> ·
+  <code>TIER1_FINDINGS.md</code> · <code>TIER1_FIX_PLAN.md</code><br>
+  نسخة احتياطية للصلاحيات قبل التعديل: <code>docs/review/permissions-restore-point.json</code>
+</footer>
+
+</div>
+</body>
+</html>
