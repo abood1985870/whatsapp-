@@ -8,3 +8,4 @@ export * from './safety';
 export * from './working-hours';
 export * from './support-learning';
 export * from './marketing';
+export * from './voice';

@@ -56,6 +56,14 @@ import { MarketingAnalyticsService } from "./analytics/marketing-analytics.servi
     SalesConversationService,
     MarketingAnalyticsService,
   ],
-  exports: [SalesConversationService, MarketingEntitlementsService, CampaignDispatchService],
+  exports: [
+    SalesConversationService,
+    MarketingEntitlementsService,
+    CampaignDispatchService,
+    // Reused by the Voice module so the voice channel shares one sales engine.
+    DiscountService,
+    LeadsService,
+    HotLeadService,
+  ],
 })
 export class MarketingModule {}

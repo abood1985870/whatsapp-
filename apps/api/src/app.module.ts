@@ -17,6 +17,7 @@ import { AuditModule } from "./audit/audit.module";
 import { FilesModule } from "./files/files.module";
 import { PlatformModule } from "./platform/platform.module";
 import { MarketingModule } from "./marketing/marketing.module";
+import { VoiceModule } from "./voice/voice.module";
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { MarketingModule } from "./marketing/marketing.module";
     FilesModule,
     PlatformModule,
     MarketingModule,
+    VoiceModule,
   ],
 })
 export class AppModule {}

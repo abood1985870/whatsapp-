@@ -57,8 +57,17 @@ app.use((req, res, next) => {
 });
 
 // Proxy /socket.io to Realtime server
-app.use('/socket.io', createProxyMiddleware({ 
-  target: 'http://localhost:3002', 
+app.use('/socket.io', createProxyMiddleware({
+  target: 'http://localhost:3002',
+  ws: true,
+  changeOrigin: true
+}));
+
+// Voice media stream needs a WebSocket upgrade to the API, which the
+// catch-all proxy below does not perform. Registered first so the more
+// specific path wins.
+app.use('/v1/voice/media-stream', createProxyMiddleware({
+  target: 'http://localhost:3001',
   ws: true,
   changeOrigin: true
 }));
