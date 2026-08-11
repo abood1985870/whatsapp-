@@ -6,6 +6,19 @@ import { AuditService } from "../../audit/audit.service";
 /** Platform-wide hard ceiling. Nothing — prompt, product config, request payload — can exceed it. */
 export const PLATFORM_MAX_DISCOUNT_PERCENT = 5;
 
+/**
+ * Pure discount math in integer minor units. The effective percent is
+ * clamped to the platform ceiling regardless of what is requested, and
+ * the discount is rounded DOWN so the final price never dips below the
+ * intended floor. Exported for direct unit testing.
+ */
+export function computeDiscountMath(originalPriceMinor: number, requestedPercent: number) {
+  const discountPercent = Math.max(0, Math.min(requestedPercent, PLATFORM_MAX_DISCOUNT_PERCENT));
+  const discountAmountMinor = Math.floor((originalPriceMinor * discountPercent) / 100);
+  const finalPriceMinor = originalPriceMinor - discountAmountMinor;
+  return { discountPercent, discountAmountMinor, finalPriceMinor };
+}
+
 export interface ComputedOffer {
   offerId: string;
   originalPriceMinor: number;
@@ -36,11 +49,11 @@ export class DiscountService {
     });
     if (!product) throw new BadRequestException("PRODUCT_NOT_FOUND");
 
-    const discountPercent = Math.max(0, Math.min(product.maxDiscountPercent, PLATFORM_MAX_DISCOUNT_PERCENT));
     const originalPriceMinor = product.priceMinor;
-    // integer arithmetic; round the discount down so we never exceed the cap
-    const discountAmountMinor = Math.floor((originalPriceMinor * discountPercent) / 100);
-    const finalPriceMinor = originalPriceMinor - discountAmountMinor;
+    const { discountPercent, discountAmountMinor, finalPriceMinor } = computeDiscountMath(
+      originalPriceMinor,
+      product.maxDiscountPercent
+    );
 
     const offer = await prisma.discountOffer.create({
       data: {
