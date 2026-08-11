@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
 import {
   Inbox, Users, BookOpen, Bot, BarChart3, MessageCircle,
-  Settings, LogOut, ChevronLeft, ShieldCheck, Megaphone
+  Settings, LogOut, ChevronLeft, ShieldCheck, Megaphone, PhoneCall
 } from "lucide-react";
 
 const navItems = [
@@ -31,6 +31,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const platformOwner = isPlatformOwner(user);
   const orgId = user?.memberships?.[0]?.organizationId;
   const [marketingEnabled, setMarketingEnabled] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
 
   // Server decides entitlement; UI visibility is convenience only.
   useEffect(() => {
@@ -40,6 +41,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .get(`/marketing/entitlements?organizationId=${orgId}`)
       .then((res) => { if (active) setMarketingEnabled(res.data?.data?.enabled === true); })
       .catch(() => { if (active) setMarketingEnabled(false); });
+    api
+      .get(`/voice/entitlements?organizationId=${orgId}`)
+      .then((res) => { if (active) setVoiceEnabled(res.data?.data?.enabled === true); })
+      .catch(() => { if (active) setVoiceEnabled(false); });
     return () => { active = false; };
   }, [orgId]);
 
@@ -47,6 +52,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ...(platformOwner ? [{ href: "/app/platform", label: "مالك المنصة", icon: ShieldCheck }] : []),
     ...navItems,
     ...(marketingEnabled ? [{ href: "/app/marketing", label: "التسويق والمبيعات", icon: Megaphone }] : []),
+    ...(voiceEnabled ? [{ href: "/app/voice", label: "الموظف الصوتي", icon: PhoneCall }] : []),
   ];
 
   return (
