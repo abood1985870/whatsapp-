@@ -23,6 +23,17 @@ import { PERMISSIONS, ROLE_PERMISSIONS } from "@qanoai/permissions";
  * grants on custom roles we do not own.
  */
 
+export interface SyncOptions {
+  /**
+   * Revoke grants the map no longer contains. OFF by default, and deliberately
+   * so: a revocation can take a capability away from a team that is using it
+   * right now, and this script is meant to be safe to run on a live database
+   * without reading the diff first. Turn it on only after reviewing what would
+   * be removed.
+   */
+  revokeStaleGrants?: boolean;
+}
+
 /** Arabic display names. The UI lists these; a code with no entry falls back to its code. */
 const NAMES: Record<string, string> = {
   "organization.read": "قراءة المؤسسة",
@@ -80,16 +91,31 @@ const NAMES: Record<string, string> = {
   "voice.recordings.access": "الوصول لتسجيلات المكالمات",
   "voice.analytics.read": "قراءة تحليلات المكالمات",
   "voice.diagnostics.run": "تشغيل التشخيص",
+  "settings.read": "قراءة الإعدادات",
+  "settings.update": "تعديل الإعدادات",
+  "branch.read": "قراءة الفروع",
+  "branch.create": "إنشاء فرع",
+  "team.read": "قراءة الفرق",
+  "team.create": "إنشاء فريق",
+  "routing.read": "قراءة قواعد التوجيه",
+  "routing.create": "إنشاء قاعدة توجيه",
+  "sla.read": "قراءة اتفاقيات الخدمة",
+  "sla.create": "إنشاء اتفاقية خدمة",
+  "whatsapp.update": "تحديث واتساب",
+  "conversations.update": "تحديث المحادثات",
+  "message.read": "قراءة الرسائل",
+  "message.send": "إرسال الرسائل",
+  "message.broadcast": "بث الرسائل",
 };
 
-/** Legacy codes that live in the database from the old seed list. */
-const LEGACY_CODES = new Set([
-  "whatsapp.update",
-  "conversations.update",
-  "message.send",
-  "message.read",
-  "message.broadcast",
-]);
+/**
+ * Codes that exist in the database but not in the map.
+ *
+ * Every code the API enforces is now in the map, so this is empty. It stays as
+ * the mechanism: if a future code is checked in a controller before it is added
+ * here, listing it protects its existing grants from being revoked.
+ */
+const LEGACY_CODES = new Set<string>([]);
 
 export interface SyncResult {
   permissionsInserted: number;
@@ -100,7 +126,10 @@ export interface SyncResult {
   legacyCodesRetained: string[];
 }
 
-export async function syncPermissions(prisma: PrismaClient): Promise<SyncResult> {
+export async function syncPermissions(
+  prisma: PrismaClient,
+  options: SyncOptions = {}
+): Promise<SyncResult> {
   const result: SyncResult = {
     permissionsInserted: 0,
     permissionsUpdated: 0,
@@ -172,12 +201,14 @@ export async function syncPermissions(prisma: PrismaClient): Promise<SyncResult>
       result.grantsAdded += toAdd.length;
     }
 
-    // Revoke anything the map no longer grants — except legacy codes, which
-    // some running code may still check until they are retired deliberately.
+    // Revoke anything the map no longer grants — opt-in, and never for a code
+    // that running code still checks.
     const legacyIds = new Set(
       allPermissions.filter((p) => LEGACY_CODES.has(p.code)).map((p) => p.id)
     );
-    const toRemove = [...held].filter((id) => !wanted.has(id) && !legacyIds.has(id));
+    const toRemove = options.revokeStaleGrants
+      ? [...held].filter((id) => !wanted.has(id) && !legacyIds.has(id))
+      : [];
     if (toRemove.length) {
       await prisma.rolePermission.deleteMany({
         where: { roleId: role.id, permissionId: { in: toRemove } },

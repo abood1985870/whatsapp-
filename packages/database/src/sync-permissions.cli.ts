@@ -9,7 +9,11 @@ import { syncPermissions } from "./sync-permissions";
 async function main() {
   const prisma = new PrismaClient();
   try {
-    const result = await syncPermissions(prisma);
+    // Additive by default. Pass --revoke to also remove grants the map no
+    // longer contains; read the diff before you do.
+    const revokeStaleGrants = process.argv.includes("--revoke");
+    if (revokeStaleGrants) console.log("running WITH revocation of stale grants");
+    const result = await syncPermissions(prisma, { revokeStaleGrants });
     console.log("Permission sync complete:");
     console.log(`  permissions inserted : ${result.permissionsInserted}`);
     console.log(`  permissions updated  : ${result.permissionsUpdated}`);

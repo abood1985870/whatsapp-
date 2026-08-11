@@ -54,6 +54,27 @@ export const PERMISSIONS = {
   VOICE_RECORDINGS_ACCESS: "voice.recordings.access",
   VOICE_ANALYTICS_READ: "voice.analytics.read",
   VOICE_DIAGNOSTICS_RUN: "voice.diagnostics.run",
+
+  // Codes the API already enforces with @RequirePermission but which were never
+  // in this map, and therefore never existed in the database. PermissionGuard
+  // denies a code it cannot find, so every one of these routes was closed to
+  // everybody — including the organization owner. That is why the settings,
+  // branches, teams, routing and SLA screens were dead.
+  SETTINGS_READ: "settings.read",
+  SETTINGS_UPDATE: "settings.update",
+  BRANCH_READ: "branch.read",
+  BRANCH_CREATE: "branch.create",
+  TEAM_READ: "team.read",
+  TEAM_CREATE: "team.create",
+  ROUTING_READ: "routing.read",
+  ROUTING_CREATE: "routing.create",
+  SLA_READ: "sla.read",
+  SLA_CREATE: "sla.create",
+  WHATSAPP_UPDATE: "whatsapp.update",
+  CONVERSATIONS_UPDATE: "conversations.update",
+  MESSAGE_READ: "message.read",
+  MESSAGE_SEND: "message.send",
+  MESSAGE_BROADCAST: "message.broadcast",
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -136,6 +157,21 @@ export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     PERMISSIONS.INTEGRATIONS_MANAGE,
     PERMISSIONS.AUDIT_READ,
     PERMISSIONS.SETTINGS_MANAGE,
+    PERMISSIONS.SETTINGS_READ,
+    PERMISSIONS.SETTINGS_UPDATE,
+    PERMISSIONS.BRANCH_READ,
+    PERMISSIONS.BRANCH_CREATE,
+    PERMISSIONS.TEAM_READ,
+    PERMISSIONS.TEAM_CREATE,
+    PERMISSIONS.ROUTING_READ,
+    PERMISSIONS.ROUTING_CREATE,
+    PERMISSIONS.SLA_READ,
+    PERMISSIONS.SLA_CREATE,
+    PERMISSIONS.WHATSAPP_UPDATE,
+    PERMISSIONS.CONVERSATIONS_UPDATE,
+    PERMISSIONS.MESSAGE_READ,
+    PERMISSIONS.MESSAGE_SEND,
+    PERMISSIONS.MESSAGE_BROADCAST,
   ],
   SUPPORT_MANAGER: [
     PERMISSIONS.ORGANIZATION_READ,
@@ -156,6 +192,24 @@ export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     PERMISSIONS.TRAINING_READ,
     PERMISSIONS.ANALYTICS_READ,
     PERMISSIONS.SETTINGS_MANAGE,
+    PERMISSIONS.SETTINGS_READ,
+    PERMISSIONS.BRANCH_READ,
+    PERMISSIONS.TEAM_READ,
+    PERMISSIONS.ROUTING_READ,
+    PERMISSIONS.SLA_READ,
+    PERMISSIONS.WHATSAPP_UPDATE,
+    PERMISSIONS.CONVERSATIONS_UPDATE,
+    PERMISSIONS.MESSAGE_READ,
+    PERMISSIONS.MESSAGE_SEND,
+    PERMISSIONS.MESSAGE_BROADCAST,
+    // Kept because the database already grants these to this role today.
+    // Removing a capability an existing team relies on is not this commit's job.
+    PERMISSIONS.ORGANIZATION_UPDATE,
+    PERMISSIONS.WHATSAPP_CONNECT,
+    PERMISSIONS.WHATSAPP_DISCONNECT,
+    PERMISSIONS.AI_CONFIGURE,
+    PERMISSIONS.AI_PUBLISH,
+    PERMISSIONS.KNOWLEDGE_UPDATE,
   ],
   SUPPORT_AGENT: [
     PERMISSIONS.ORGANIZATION_READ,
@@ -168,6 +222,9 @@ export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     PERMISSIONS.CONVERSATIONS_ASSIGN,
     PERMISSIONS.AI_READ,
     PERMISSIONS.KNOWLEDGE_READ,
+    PERMISSIONS.CONVERSATIONS_UPDATE,
+    PERMISSIONS.MESSAGE_READ,
+    PERMISSIONS.MESSAGE_SEND,
   ],
   ANALYST: [
     PERMISSIONS.ORGANIZATION_READ,
