@@ -5,6 +5,24 @@ import { processAgentTurn } from "@qanoai/ai";
 
 @Injectable()
 export class AiAgentsService {
+  /**
+   * An AI agent carries the tenant's system prompt, its business rules and the
+   * knowledge it is allowed to answer from — the configuration a competitor
+   * would most want to read, and the one an attacker would most want to edit.
+   * Every id-addressed method below proves ownership before touching anything.
+   *
+   * The inner queries then derive their organization from the verified agent,
+   * so they stay correct without repeating the predicate everywhere.
+   */
+  private async assertOwned(id: string, organizationId: string) {
+    const agent = await prisma.aiAgent.findFirst({
+      where: { id, organizationId, deletedAt: null },
+      select: { id: true, organizationId: true },
+    });
+    if (!agent) throw new NotFoundException("AGENT_NOT_FOUND");
+    return agent;
+  }
+
   async findAll(organizationId: string): Promise<any> { 
     return prisma.aiAgent.findMany({ 
       where: { organizationId, deletedAt: null }, 
@@ -12,7 +30,8 @@ export class AiAgentsService {
     }); 
   }
   
-  async findOne(id: string): Promise<any> {
+  async findOne(id: string, organizationId: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     const agent = await prisma.aiAgent.findUnique({ 
       where: { id }, 
       include: { 
@@ -46,7 +65,8 @@ export class AiAgentsService {
     }); 
   }
   
-  async update(id: string, data: any): Promise<any> { 
+  async update(id: string, organizationId: string, data: any): Promise<any> {
+    await this.assertOwned(id, organizationId); 
     return prisma.aiAgent.update({ 
       where: { id }, 
       data: { 
@@ -68,7 +88,8 @@ export class AiAgentsService {
     }); 
   }
   
-  async publish(id: string): Promise<any> {
+  async publish(id: string, organizationId: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     const agent = await prisma.aiAgent.findUnique({ where: { id } });
     if (!agent) throw new NotFoundException("AGENT_NOT_FOUND");
     const latestVersion = await prisma.aiAgentVersion.findFirst({ where: { agentId: id }, orderBy: { version: "desc" } });
@@ -95,11 +116,13 @@ export class AiAgentsService {
     return version;
   }
 
-  async listVersions(id: string): Promise<any> {
+  async listVersions(id: string, organizationId: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     return prisma.aiAgentVersion.findMany({ where: { agentId: id }, orderBy: { version: "desc" } });
   }
 
-  async rollback(id: string, versionId: string): Promise<any> {
+  async rollback(id: string, organizationId: string, versionId: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     const version = await prisma.aiAgentVersion.findUnique({ where: { id: versionId } });
     if (!version || version.agentId !== id) throw new NotFoundException("VERSION_NOT_FOUND");
     
@@ -121,7 +144,8 @@ export class AiAgentsService {
     return { success: true, rolledBackTo: version.version };
   }
 
-  async cloneAgent(id: string, userId: string): Promise<any> {
+  async cloneAgent(id: string, organizationId: string, userId: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     const agent = await prisma.aiAgent.findUnique({ where: { id }, include: { } });
     if (!agent) throw new NotFoundException("AGENT_NOT_FOUND");
     
@@ -147,7 +171,8 @@ export class AiAgentsService {
     });
   }
 
-  async testAgent(id: string, input: string): Promise<any> {
+  async testAgent(id: string, organizationId: string, input: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     const agent = await prisma.aiAgent.findUnique({ where: { id } });
     if (!agent) throw new NotFoundException("AGENT_NOT_FOUND");
 
@@ -170,7 +195,8 @@ export class AiAgentsService {
     };
   }
 
-  async listRuns(id: string): Promise<any> {
+  async listRuns(id: string, organizationId: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     return prisma.aiRun.findMany({
       where: { agentId: id },
       orderBy: { createdAt: "desc" },
@@ -178,14 +204,16 @@ export class AiAgentsService {
     });
   }
 
-  async listFeedback(id: string): Promise<any> {
+  async listFeedback(id: string, organizationId: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     return prisma.aiFeedback.findMany({
       where: { agentId: id },
       orderBy: { createdAt: "desc" }
     });
   }
 
-  async submitFeedback(id: string, dto: any, userId: string): Promise<any> {
+  async submitFeedback(id: string, organizationId: string, dto: any, userId: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     if (!dto.runId) throw new BadRequestException("RUN_ID_REQUIRED");
     const run = await prisma.aiRun.findUnique({ where: { id: dto.runId } });
     if (!run || run.agentId !== id) throw new NotFoundException("RUN_NOT_FOUND");
@@ -205,7 +233,8 @@ export class AiAgentsService {
     });
   }
 
-  async listEvaluationCases(id: string): Promise<any> {
+  async listEvaluationCases(id: string, organizationId: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     const agent = await prisma.aiAgent.findUnique({ where: { id }, select: { organizationId: true } });
     if (!agent) throw new NotFoundException("AGENT_NOT_FOUND");
     return prisma.evaluationCase.findMany({
@@ -214,7 +243,8 @@ export class AiAgentsService {
     });
   }
 
-  async runEvaluation(id: string): Promise<any> {
+  async runEvaluation(id: string, organizationId: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     const agent = await prisma.aiAgent.findUnique({ where: { id } });
     if (!agent) throw new NotFoundException("AGENT_NOT_FOUND");
     if (!agent.activeVersionId) throw new BadRequestException("AGENT_NOT_PUBLISHED");
@@ -250,11 +280,13 @@ export class AiAgentsService {
     });
   }
 
-  async listPolicies(id: string): Promise<any> {
+  async listPolicies(id: string, organizationId: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     return prisma.agentPolicy.findMany({ where: { agentId: id } });
   }
 
-  async createPolicy(id: string, dto: any): Promise<any> {
+  async createPolicy(id: string, organizationId: string, dto: any): Promise<any> {
+    await this.assertOwned(id, organizationId);
     return prisma.agentPolicy.create({
       data: {
         agentId: id,
@@ -265,13 +297,15 @@ export class AiAgentsService {
     });
   }
 
-  async listTools(id: string): Promise<any> {
+  async listTools(id: string, organizationId: string): Promise<any> {
+    await this.assertOwned(id, organizationId);
     const agent = await prisma.aiAgent.findUnique({ where: { id }, select: { organizationId: true } });
     if (!agent) throw new NotFoundException("AGENT_NOT_FOUND");
     return prisma.agentTool.findMany({ where: { organizationId: agent.organizationId } });
   }
 
-  async registerTool(id: string, dto: any): Promise<any> {
+  async registerTool(id: string, organizationId: string, dto: any): Promise<any> {
+    await this.assertOwned(id, organizationId);
     const agent = await prisma.aiAgent.findUnique({ where: { id }, select: { organizationId: true } });
     if (!agent) throw new NotFoundException("AGENT_NOT_FOUND");
     return prisma.agentTool.create({

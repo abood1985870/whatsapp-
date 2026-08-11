@@ -1,5 +1,12 @@
 generator client {
   provider = "prisma-client-js"
+
+  // strictUndefinedChecks turns `where: { organizationId: undefined }` into a
+  // runtime error instead of a query with no tenant filter at all. That silent
+  // widening is how an unscoped read looks in this codebase: the predicate is
+  // written, the value is missing, and Prisma quietly drops the condition and
+  // returns every organization's rows. With this on, the same mistake throws.
+  previewFeatures = ["strictUndefinedChecks"]
 }
 
 datasource db {

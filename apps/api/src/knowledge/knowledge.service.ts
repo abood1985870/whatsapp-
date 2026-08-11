@@ -6,11 +6,40 @@ import { semanticSearch } from "@qanoai/ai";
 
 @Injectable()
 export class KnowledgeService {
+  /**
+   * The knowledge base is the tenant's own business content — price lists,
+   * policies, contracts, internal FAQs — and it is also what the AI answers
+   * customers from. Reading another tenant's base leaks their commercial
+   * terms; writing to it changes what their AI tells their customers.
+   *
+   * Both ends were addressable by id alone. These helpers prove ownership
+   * first; a document is checked by walking source -> knowledgeBase, since
+   * Document itself carries no organizationId.
+   */
+  private async assertBaseOwned(id: string, organizationId: string) {
+    const base = await prisma.knowledgeBase.findFirst({
+      where: { id, organizationId },
+      select: { id: true, organizationId: true },
+    });
+    if (!base) throw new NotFoundException("KNOWLEDGE_BASE_NOT_FOUND");
+    return base;
+  }
+
+  private async assertDocumentOwned(id: string, organizationId: string) {
+    const doc = await prisma.document.findFirst({
+      where: { id, source: { knowledgeBase: { organizationId } } },
+      select: { id: true },
+    });
+    if (!doc) throw new NotFoundException("DOCUMENT_NOT_FOUND");
+    return doc;
+  }
+
   async findBases(organizationId: string): Promise<any> { 
     return prisma.knowledgeBase.findMany({ where: { organizationId }, include: { sources: true } }); 
   }
   
-  async findBase(id: string): Promise<any> {
+  async findBase(id: string, organizationId: string): Promise<any> {
+    await this.assertBaseOwned(id, organizationId);
     const base = await prisma.knowledgeBase.findUnique({ 
       where: { id }, 
       include: { 
@@ -37,7 +66,11 @@ export class KnowledgeService {
     }); 
   }
   
-  async createSource(data: any): Promise<any> { 
+  async createSource(data: any): Promise<any> {
+    // knowledgeBaseId comes from the request body; without this check a caller
+    // could attach a source — and therefore content the AI answers from — to
+    // another organization's knowledge base.
+    await this.assertBaseOwned(data.knowledgeBaseId, data.organizationId); 
     return prisma.knowledgeSource.create({ 
       data: { 
         knowledgeBaseId: data.knowledgeBaseId, 
@@ -67,7 +100,8 @@ export class KnowledgeService {
     }); 
   }
 
-  async syncBase(id: string): Promise<any> {
+  async syncBase(id: string, organizationId: string): Promise<any> {
+    await this.assertBaseOwned(id, organizationId);
     const base = await prisma.knowledgeBase.findUnique({ where: { id }, include: { sources: true } });
     if (!base) throw new NotFoundException("KNOWLEDGE_BASE_NOT_FOUND");
 
@@ -94,7 +128,8 @@ export class KnowledgeService {
     return { success: true, message: "Sync started" };
   }
 
-  async getBaseStats(id: string): Promise<any> {
+  async getBaseStats(id: string, organizationId: string): Promise<any> {
+    await this.assertBaseOwned(id, organizationId);
     const base = await prisma.knowledgeBase.findUnique({ where: { id }, include: { sources: { include: { documents: { include: { versions: { include: { chunks: true } } } } } } } });
     if (!base) throw new NotFoundException("KNOWLEDGE_BASE_NOT_FOUND");
     
@@ -117,7 +152,8 @@ export class KnowledgeService {
     };
   }
 
-  async uploadDocument(baseId: string, dto: any): Promise<any> {
+  async uploadDocument(baseId: string, organizationId: string, dto: any): Promise<any> {
+    await this.assertBaseOwned(baseId, organizationId);
     const base = await prisma.knowledgeBase.findUnique({ where: { id: baseId } });
     if (!base) throw new NotFoundException("KNOWLEDGE_BASE_NOT_FOUND");
     if (!dto.content?.trim()) {
@@ -170,7 +206,8 @@ export class KnowledgeService {
     return doc;
   }
 
-  async deleteDocument(id: string): Promise<any> {
+  async deleteDocument(id: string, organizationId: string): Promise<any> {
+    await this.assertDocumentOwned(id, organizationId);
     const doc = await prisma.document.findUnique({ where: { id }, include: { versions: { include: { chunks: true } } } });
     if (!doc) throw new NotFoundException("DOCUMENT_NOT_FOUND");
     
@@ -179,7 +216,8 @@ export class KnowledgeService {
     return { success: true };
   }
 
-  async reprocessDocument(id: string): Promise<any> {
+  async reprocessDocument(id: string, organizationId: string): Promise<any> {
+    await this.assertDocumentOwned(id, organizationId);
     const doc = await prisma.document.findUnique({ where: { id }, include: { source: { include: { knowledgeBase: true } } } });
     if (!doc) throw new NotFoundException("DOCUMENT_NOT_FOUND");
 
