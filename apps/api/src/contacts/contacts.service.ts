@@ -2,6 +2,10 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException }
 import { prisma } from "@qanoai/database";
 import { normalizePhone, csvRow } from "@qanoai/shared";
 
+/** A pasted CSV is not a bulk-migration tool; the file-upload path has its own limits. */
+const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
+const MAX_IMPORT_ROWS = 5000;
+
 @Injectable()
 export class ContactsService {
   /**
@@ -100,30 +104,52 @@ export class ContactsService {
   }
 
   async importContacts(organizationId: string, csvData: string): Promise<any> {
-    const lines = csvData.split('\n');
+    if (typeof csvData !== "string" || !csvData.trim()) throw new BadRequestException("CSV_REQUIRED");
+    if (csvData.length > MAX_IMPORT_BYTES) throw new BadRequestException("CSV_TOO_LARGE");
+
+    const lines = csvData.split("\n");
+    if (lines.length - 1 > MAX_IMPORT_ROWS) {
+      throw new BadRequestException(`TOO_MANY_ROWS: الحد الأقصى ${MAX_IMPORT_ROWS} صف`);
+    }
+
     let imported = 0;
-    
-    // Skip header
+    let skipped = 0;
+    // Errors were swallowed by a bare `catch {}`, so an import that failed on
+    // every single row still reported success. The caller now gets counts and
+    // the first few reasons — the difference between "it worked" and "none of
+    // your 800 contacts were added, and here is why".
+    const errors: string[] = [];
+
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue;
-      const [name, phone, email, company] = lines[i].split(',').map(s => s.replace(/"/g, '').trim());
-      
-      if (!phone) continue;
-      
+      const [name, phone, email, company] = lines[i].split(",").map((s) => s.replace(/"/g, "").trim());
+
+      if (!phone) {
+        skipped++;
+        if (errors.length < 10) errors.push(`صف ${i + 1}: بدون رقم`);
+        continue;
+      }
+
       const normalized = normalizePhone(phone);
-      
+      if (!normalized) {
+        skipped++;
+        if (errors.length < 10) errors.push(`صف ${i + 1}: رقم غير صالح`);
+        continue;
+      }
+
       try {
         await prisma.contact.upsert({
           where: { organizationId_normalizedPhone: { organizationId, normalizedPhone: normalized } },
           update: { name: name || undefined, email: email || undefined, company: company || undefined },
-          create: { organizationId, primaryPhone: phone, normalizedPhone: normalized, name, email, company }
+          create: { organizationId, primaryPhone: phone, normalizedPhone: normalized, name, email, company },
         });
         imported++;
-      } catch (e) {
-        // Skip on error
+      } catch (e: any) {
+        skipped++;
+        if (errors.length < 10) errors.push(`صف ${i + 1}: ${String(e?.message ?? "").slice(0, 120)}`);
       }
     }
-    return { success: true, imported };
+    return { success: true, imported, skipped, errors };
   }
 
   /**

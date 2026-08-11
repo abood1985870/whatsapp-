@@ -3,6 +3,8 @@ import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs";
 import { createHash } from "crypto";
 import { prisma } from "@qanoai/database";
+import { config } from "@qanoai/config";
+import { encryptSecret, decryptSecret } from "@qanoai/shared";
 import { generateCorrelationId } from "@qanoai/shared";
 import { v4 as uuidv4 } from "uuid";
 // @ts-ignore
@@ -160,7 +162,7 @@ export class AuthService {
     });
     if (!credential) throw new UnauthorizedException("2FA_NOT_SETUP");
 
-    if (!authenticator.verify({ token: code, secret: credential.secret })) {
+    if (!authenticator.verify({ token: code, secret: this.readSecret(credential.secret) })) {
       await this.recordFailedLogin(user.id, user.email, context, "MFA");
       throw new UnauthorizedException("INVALID_TOKEN");
     }
@@ -241,6 +243,14 @@ export class AuthService {
         },
       })
       .catch((e) => this.logger.warn(`Could not write failed-login audit row: ${e?.message}`));
+  }
+
+  /**
+   * Reads a stored TOTP seed. Rows written before encryption shipped are
+   * plaintext and are returned unchanged, so no one is locked out mid-migration.
+   */
+  private readSecret(stored: string): string {
+    return decryptSecret(stored, config.CREDENTIAL_ENCRYPTION_KEY);
   }
 
   /** Salted with AUTH_SECRET so the hashes are not reversible via a rainbow table of the IPv4 space. */
@@ -397,7 +407,11 @@ export class AuthService {
 
     // Only ever one pending credential per user.
     await prisma.twoFactorCredential.deleteMany({ where: { userId, confirmedAt: null } });
-    await prisma.twoFactorCredential.create({ data: { userId, secret } });
+    // The seed is encrypted at rest. Anyone holding a plaintext TOTP seed can
+    // mint valid codes forever, so a database dump was a permanent 2FA bypass.
+    await prisma.twoFactorCredential.create({
+      data: { userId, secret: encryptSecret(secret, config.CREDENTIAL_ENCRYPTION_KEY) },
+    });
 
     return { secret, otpauthUrl };
   }
@@ -410,7 +424,7 @@ export class AuthService {
 
     if (!credential) throw new UnauthorizedException("2FA_NOT_SETUP");
 
-    const isValid = authenticator.verify({ token, secret: credential.secret });
+    const isValid = authenticator.verify({ token, secret: this.readSecret(credential.secret) });
     if (!isValid) throw new UnauthorizedException("INVALID_TOKEN");
 
     await prisma.twoFactorCredential.update({
@@ -441,7 +455,7 @@ export class AuthService {
         where: { userId, confirmedAt: { not: null } },
         orderBy: { createdAt: "desc" },
       });
-      proven = !!credential && authenticator.verify({ token: proof.token, secret: credential.secret });
+      proven = !!credential && authenticator.verify({ token: proof.token, secret: this.readSecret(credential.secret) });
     }
 
     if (!proven && proof?.password) {

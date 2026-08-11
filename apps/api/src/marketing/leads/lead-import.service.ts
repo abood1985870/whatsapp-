@@ -277,17 +277,30 @@ export class LeadImportService {
       }
     }
 
+    // MAX_ROWS was declared at the top of this file and never applied here.
+    // An .xlsx is a zip: five megabytes of upload can expand into a sheet with
+    // millions of rows, and every one of them was pushed into an array held in
+    // memory. The file size limit alone does not bound what the file contains.
     sheet.eachRow((row, rowNumber) => {
       if (hasHeader && rowNumber === 1) return;
+      if (rows.length >= MAX_ROWS) return;
+
       const cell = (idx: number) => {
         const v = row.getCell(idx).value;
         if (v === null || v === undefined) return undefined;
         if (typeof v === "object" && "text" in (v as any)) return String((v as any).text);
         if (typeof v === "object" && "hyperlink" in (v as any)) return String((v as any).hyperlink);
-        return String(v);
+        // Each cell is bounded too: a single cell can hold 32k characters.
+        return String(v).slice(0, 500);
       };
       rows.push({ name: cell(nameIdx), phone: cell(phoneIdx), website: cell(webIdx) });
     });
+
+    if (sheet.rowCount > MAX_ROWS) {
+      // Silently importing the first 5000 of 40000 rows would look like success
+      // to whoever uploaded the file.
+      throw new BadRequestException(`TOO_MANY_ROWS: الملف فيه ${sheet.rowCount} صف، الحد الأقصى ${MAX_ROWS}`);
+    }
     return rows;
   }
 }

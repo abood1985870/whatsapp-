@@ -19,6 +19,7 @@ import { FilesModule } from "./files/files.module";
 import { PlatformModule } from "./platform/platform.module";
 import { MarketingModule } from "./marketing/marketing.module";
 import { VoiceModule } from "./voice/voice.module";
+import { PrivacyModule } from "./privacy/privacy.module";
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { VoiceModule } from "./voice/voice.module";
     PlatformModule,
     MarketingModule,
     VoiceModule,
+    PrivacyModule,
   ],
 })
 export class AppModule {}

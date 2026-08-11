@@ -9,7 +9,9 @@ const db: any = {
   organization: { create: jest.fn() },
 };
 jest.mock("@qanoai/database", () => ({ prisma: db }));
-jest.mock("@qanoai/config", () => ({ config: { AUTH_SECRET: "test-secret" } }));
+jest.mock("@qanoai/config", () => ({
+  config: { AUTH_SECRET: "test-secret", CREDENTIAL_ENCRYPTION_KEY: "a-test-key-of-at-least-32-characters!!" },
+}));
 
 const verifyTotp = jest.fn();
 jest.mock("otplib", () => ({
@@ -244,6 +246,21 @@ describe("AuthService hardening", () => {
       await service.setup2Fa("u-1");
       expect(db.twoFactorCredential.create.mock.calls[0][0].data.confirmedAt).toBeUndefined();
       expect(db.user.update).not.toHaveBeenCalled();
+    });
+
+    it("never stores the TOTP seed in the clear", async () => {
+      db.user.findFirst.mockResolvedValue(activeUser());
+      db.twoFactorCredential.deleteMany.mockResolvedValue({});
+      db.twoFactorCredential.create.mockResolvedValue({});
+
+      const { secret } = await service.setup2Fa("u-1");
+      const stored = db.twoFactorCredential.create.mock.calls[0][0].data.secret;
+
+      // A plaintext seed in a database dump is a permanent 2FA bypass — codes
+      // can be minted from it forever.
+      expect(stored).not.toBe(secret);
+      expect(stored).not.toContain(secret);
+      expect(stored.startsWith("enc:v1:")).toBe(true);
     });
 
     it("disable refuses with no proof at all", async () => {
