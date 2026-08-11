@@ -25,7 +25,19 @@ export interface AgentResponse {
   costUsd?: number;
 }
 
+/**
+ * Nothing past this point of a single customer message is used for a decision.
+ * Clamping here means every downstream scan — injection heuristics, moderation,
+ * masking, retrieval — sees a bounded string, so no one of them can be turned
+ * into a denial of service by pasting a wall of text into WhatsApp.
+ */
+const MAX_TURN_MESSAGE_CHARS = 4000;
+
 export async function processAgentTurn(context: AgentContext): Promise<AgentResponse> {
+  if (typeof context.message === 'string' && context.message.length > MAX_TURN_MESSAGE_CHARS) {
+    context = { ...context, message: context.message.slice(0, MAX_TURN_MESSAGE_CHARS) };
+  }
+
   // 1. Fetch Agent Configuration (needed by several checks below)
   const agent = await prisma.aiAgent.findUnique({
     where: { id: context.agentId }

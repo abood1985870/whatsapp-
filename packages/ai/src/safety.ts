@@ -29,17 +29,34 @@ export function detectPromptInjection(input: string): ModerationResult {
   return { flagged: false };
 }
 
+/**
+ * Longest input any masking pass will look at.
+ *
+ * A WhatsApp text body can be far longer than this, and the credit-card
+ * pattern below is quadratic in the length of a run of digits and separators.
+ * At 80,000 characters one message blocked the event loop for roughly four
+ * seconds — with a 50 MB request body limit in front of it, that is a
+ * single-request outage. Truncating costs nothing: PII this far into a
+ * message is not what the masker exists for.
+ */
+export const MAX_MASK_INPUT_CHARS = 4000;
+
 export function maskPII(input: string): string {
-  // Very basic regex-based PII masking
-  let masked = input;
-  
-  // Mask Email
-  masked = masked.replace(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/gi, '[EMAIL]');
-  
-  // Mask Credit Cards (simplified)
-  masked = masked.replace(/\b(?:\d[ -]*?){13,16}\b/g, '[CREDIT_CARD]');
-  
-  // Mask SSN / ID Numbers (simplified)
+  if (!input) return input;
+
+  let masked = input.length > MAX_MASK_INPUT_CHARS
+    ? input.slice(0, MAX_MASK_INPUT_CHARS)
+    : input;
+
+  // Email. Written so no character class can match the same text two ways —
+  // the previous form allowed '.' and '-' on both sides of the '@' and
+  // backtracked exponentially on a long run of dots.
+  masked = masked.replace(/[^\s@]{1,64}@[^\s@.]{1,255}\.[A-Za-z]{2,24}/g, '[EMAIL]');
+
+  // Credit cards. Bounded on both sides so the separator run cannot grow.
+  masked = masked.replace(/\b\d(?:[ -]?\d){12,15}\b/g, '[CREDIT_CARD]');
+
+  // SSN-shaped ids.
   masked = masked.replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[SSN]');
 
   return masked;

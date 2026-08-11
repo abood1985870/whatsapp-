@@ -18,7 +18,7 @@ export class FilesController {
   @Post("upload")
   @UseGuards(PermissionGuard)
   @RequirePermission("settings.update") // Using a generic permission since files isn't in default seeds
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' }, organizationId: { type: 'string' } } } })
   async upload(

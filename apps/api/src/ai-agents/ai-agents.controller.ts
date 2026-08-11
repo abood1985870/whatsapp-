@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from "@nestjs/common";
+import { BadRequestException, Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags, ApiBearerAuth, ApiOperation } from "@nestjs/swagger";
 import { AiAgentsService } from "./ai-agents.service";
 import { AuthGuard } from "../common/guards/auth.guard";
@@ -52,6 +52,16 @@ export class AiAgentsController {
   @UseGuards(PermissionGuard)
   @RequirePermission("ai.read")
   async testAgent(@Param("id") id: string, @Body() dto: { input: string }) {
+    // The agent pipeline clamps too, but this endpoint takes its input straight
+    // from a text box, so reject an oversized body here rather than silently
+    // truncating what the operator typed and showing them a reply to something
+    // they did not send.
+    if (typeof dto?.input !== "string" || dto.input.length === 0) {
+      throw new BadRequestException("INPUT_REQUIRED");
+    }
+    if (dto.input.length > 4000) {
+      throw new BadRequestException("INPUT_TOO_LONG");
+    }
     return this.aiAgentsService.testAgent(id, dto.input);
   }
 

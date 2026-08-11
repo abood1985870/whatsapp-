@@ -46,7 +46,7 @@ export class MessagesController {
   @Post("media")
   @UseGuards(PermissionGuard)
   @RequirePermission("conversations.reply")
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 16 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' }, conversationId: { type: 'string' }, organizationId: { type: 'string' }, membershipId: { type: 'string' }, caption: { type: 'string' } } } })
   async sendMedia(
