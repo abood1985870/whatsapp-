@@ -11,6 +11,9 @@ import { Phone, Stamp } from "@/components/ui/data";
 import { dutyOf, railClass, DutyBadge, type Duty } from "@/components/ui/duty";
 import { Search, Inbox as InboxIcon, MessageSquare, Building2 } from "lucide-react";
 
+/** Matches the API's maxLimit for this endpoint. */
+const PAGE_LIMIT = 200;
+
 interface Conversation {
   id: string;
   contact: { name: string | null; primaryPhone: string; avatarUrl: string | null };
@@ -37,6 +40,9 @@ export default function InboxPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | Duty>("all");
   const [orgId, setOrgId] = useState("");
+  // True when the server returned a full page, i.e. there are more conversations
+  // than are on screen and the duty counts describe this page only.
+  const [truncated, setTruncated] = useState(false);
 
   const { socket, isConnected } = useSocket({ token, enabled: !!orgId });
 
@@ -89,8 +95,13 @@ export default function InboxPage() {
 
   const loadConversations = async (organizationId: string) => {
     try {
-      const res = await api.get(`/conversations?organizationId=${organizationId}`);
-      setConversations(res.data.data || []);
+      // The API caps this list. Ask for the maximum explicitly and record
+      // whether we hit it, so the counts below can say "of the first 200"
+      // instead of quietly presenting a page as the whole inbox.
+      const res = await api.get(`/conversations?organizationId=${organizationId}&limit=${PAGE_LIMIT}`);
+      const rows = res.data.data || [];
+      setConversations(rows);
+      setTruncated(rows.length >= PAGE_LIMIT);
     } catch (err) {
       console.error("Failed to load conversations", err);
     } finally {
@@ -166,6 +177,13 @@ export default function InboxPage() {
             />
           </div>
         </div>
+
+        {truncated && (
+          <p className="px-6 pb-2 text-micro text-alert-700 dark:text-alert-300">
+            معروض أحدث <span className="num">{PAGE_LIMIT}</span> محادثة. الأرقام تحت تخص
+            المعروض فقط — استخدم البحث للوصول لمحادثة أقدم.
+          </p>
+        )}
 
         {/* حالات المناوبة — الأرقام من نفس القائمة المعروضة */}
         <div className="flex items-center gap-1 px-6 -mb-px overflow-x-auto">

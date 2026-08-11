@@ -6,6 +6,7 @@ import { RequirePermission } from "../../common/decorators/require-permission.de
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { MarketingGuard } from "../guards/marketing.guard";
 import { ProductsService } from "./products.service";
+import { CurrentOrganization } from "../../common/decorators/current-organization.decorator";
 
 @ApiTags("Marketing — Products")
 @Controller({ path: "marketing/products", version: "1" })
@@ -18,7 +19,7 @@ export class ProductsController {
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.read")
   async list(
-    @Query("organizationId") organizationId: string,
+    @CurrentOrganization() organizationId: string,
     @Query("includeInactive") includeInactive?: string
   ) {
     return this.products.list(organizationId, includeInactive === "true");
@@ -27,7 +28,7 @@ export class ProductsController {
   @Get(":id")
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.read")
-  async get(@Query("organizationId") organizationId: string, @Param("id") id: string) {
+  async get(@CurrentOrganization() organizationId: string, @Param("id") id: string) {
     return this.products.findOne(organizationId, id);
   }
 
@@ -42,7 +43,7 @@ export class ProductsController {
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.products.manage")
   async update(
-    @Query("organizationId") organizationId: string,
+    @CurrentOrganization() organizationId: string,
     @Param("id") id: string,
     @Body() dto: any,
     @CurrentUser() user: any
@@ -54,7 +55,7 @@ export class ProductsController {
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.products.manage")
   async remove(
-    @Query("organizationId") organizationId: string,
+    @CurrentOrganization() organizationId: string,
     @Param("id") id: string,
     @CurrentUser() user: any
   ) {

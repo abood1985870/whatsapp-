@@ -19,6 +19,7 @@ import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { MarketingGuard } from "../guards/marketing.guard";
 import { LeadsService } from "./leads.service";
 import { LeadImportService } from "./lead-import.service";
+import { CurrentOrganization } from "../../common/decorators/current-organization.decorator";
 
 @ApiTags("Marketing — Leads")
 @Controller({ path: "marketing/leads", version: "1" })
@@ -31,7 +32,7 @@ export class LeadsController {
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.read")
   async list(
-    @Query("organizationId") organizationId: string,
+    @CurrentOrganization() organizationId: string,
     @Query("status") status?: string,
     @Query("search") search?: string,
     @Query("page") page?: string,
@@ -48,21 +49,21 @@ export class LeadsController {
   @Get("provider-status")
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.read")
-  async providerStatus(@Query("organizationId") organizationId: string) {
+  async providerStatus(@CurrentOrganization() organizationId: string) {
     return this.leads.getProviderStatus(organizationId);
   }
 
   @Get("imports")
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.read")
-  async listImports(@Query("organizationId") organizationId: string) {
+  async listImports(@CurrentOrganization() organizationId: string) {
     return this.leadImport.listImports(organizationId);
   }
 
   @Get(":id")
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.read")
-  async get(@Query("organizationId") organizationId: string, @Param("id") id: string) {
+  async get(@CurrentOrganization() organizationId: string, @Param("id") id: string) {
     return this.leads.findOne(organizationId, id);
   }
 
@@ -98,7 +99,7 @@ export class LeadsController {
   @Get(":id/eligibility")
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.read")
-  async eligibility(@Query("organizationId") organizationId: string, @Param("id") id: string) {
+  async eligibility(@CurrentOrganization() organizationId: string, @Param("id") id: string) {
     return this.leads.checkEligibility(organizationId, id);
   }
 }

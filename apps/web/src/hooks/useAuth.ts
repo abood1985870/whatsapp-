@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import api from "@/lib/api";
+import api, { setActiveOrganization } from "@/lib/api";
 
 /**
  * A presence flag for middleware, which cannot read localStorage.
@@ -10,6 +10,12 @@ import api from "@/lib/api";
  * shell or redirect to /login. SameSite=Lax so it is not sent cross-site.
  */
 const PRESENCE_COOKIE = "qano-signed-in";
+
+/** The organization the session acts on; see lib/api.ts for why the client must state it. */
+function rememberOrganization(user: any) {
+  const active = (user?.memberships || []).filter((m: any) => m.status === "ACTIVE");
+  setActiveOrganization(active.length > 0 ? active[0].organizationId : null);
+}
 
 function setSignedInCookie(signedIn: boolean) {
   if (typeof document === "undefined") return;
@@ -26,8 +32,18 @@ export function useAuth() {
     const token = localStorage.getItem("token");
     if (!token) { setSignedInCookie(false); setLoading(false); return; }
     api.get("/auth/me")
-      .then((res) => { setUser(res.data.data); setSignedInCookie(true); setLoading(false); })
-      .catch(() => { localStorage.removeItem("token"); setSignedInCookie(false); setLoading(false); });
+      .then((res) => {
+        setUser(res.data.data);
+        rememberOrganization(res.data.data);
+        setSignedInCookie(true);
+        setLoading(false);
+      })
+      .catch(() => {
+        localStorage.removeItem("token");
+        setActiveOrganization(null);
+        setSignedInCookie(false);
+        setLoading(false);
+      });
   }, []);
 
   /**
@@ -42,6 +58,7 @@ export function useAuth() {
     if (data?.mfaRequired) return data;
     localStorage.setItem("token", data.accessToken);
     setSignedInCookie(true);
+    rememberOrganization({ memberships: data.memberships });
     setUser(data.user);
     return data;
   };
@@ -51,6 +68,7 @@ export function useAuth() {
     const data = res.data.data;
     localStorage.setItem("token", data.accessToken);
     setSignedInCookie(true);
+    rememberOrganization({ memberships: data.memberships });
     setUser(data.user);
     return data;
   };
@@ -59,6 +77,7 @@ export function useAuth() {
     const res = await api.post("/auth/register", data);
     localStorage.setItem("token", res.data.data.accessToken);
     setSignedInCookie(true);
+    setActiveOrganization(res.data.data.organization?.id ?? null);
     setUser(res.data.data.user);
     return res.data.data;
   };
@@ -75,6 +94,7 @@ export function useAuth() {
       // Signing out locally must succeed even if the request does not.
     }
     localStorage.removeItem("token");
+    setActiveOrganization(null);
     setSignedInCookie(false);
     setUser(null);
     window.location.href = "/login";

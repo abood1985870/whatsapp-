@@ -6,9 +6,46 @@ const api = axios.create({
   timeout: 10000,
 });
 
+/**
+ * The organization every request acts on.
+ *
+ * The API resolves the tenant from the caller's membership, and refuses to
+ * GUESS when a user belongs to more than one organization — it returns
+ * ORGANIZATION_REQUIRED rather than silently picking the first, which is the
+ * bug the whole tenant-isolation work removed. That means the client has to
+ * say which one it means.
+ *
+ * Most calls already pass ?organizationId=. This header covers the ones that
+ * address a resource by id alone (open a conversation, reply, resolve, toggle
+ * AI, publish an agent) which sent no organization anywhere. Without it, a
+ * user in two organizations could list their inbox and then not open anything
+ * in it.
+ */
+export const ORG_STORAGE_KEY = "qano-org";
+
+export function setActiveOrganization(organizationId: string | null) {
+  if (typeof window === "undefined") return;
+  if (organizationId) localStorage.setItem(ORG_STORAGE_KEY, organizationId);
+  else localStorage.removeItem(ORG_STORAGE_KEY);
+}
+
+export function getActiveOrganization(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(ORG_STORAGE_KEY);
+}
+
 api.interceptors.request.use((config) => {
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  const organizationId = getActiveOrganization();
+  // Only when the request does not already name one. Sending a header that
+  // disagrees with an explicit ?organizationId= is refused by the API as
+  // ORGANIZATION_ID_CONFLICT, which is the correct behaviour — so do not
+  // create that conflict here.
+  if (organizationId && !/organizationId=/.test(config.url ?? "")) {
+    config.headers["X-Organization-Id"] = organizationId;
+  }
   return config;
 });
 

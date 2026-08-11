@@ -7,6 +7,7 @@ import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { MarketingGuard } from "../guards/marketing.guard";
 import { CampaignsService } from "./campaigns.service";
 import { CampaignDispatchService } from "./campaign-dispatch.service";
+import { CurrentOrganization } from "../../common/decorators/current-organization.decorator";
 
 @ApiTags("Marketing — Campaigns")
 @Controller({ path: "marketing/campaigns", version: "1" })
@@ -22,7 +23,7 @@ export class CampaignsController {
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.read")
   async list(
-    @Query("organizationId") organizationId: string,
+    @CurrentOrganization() organizationId: string,
     @Query("page") page?: string,
     @Query("limit") limit?: string
   ) {
@@ -33,7 +34,7 @@ export class CampaignsController {
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.read")
   async detail(
-    @Query("organizationId") organizationId: string,
+    @CurrentOrganization() organizationId: string,
     @Param("id") id: string,
     @Query("recipientPage") recipientPage?: string,
     @Query("recipientLimit") recipientLimit?: string
@@ -56,7 +57,7 @@ export class CampaignsController {
   @Post(":id/prepare")
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.campaigns.manage")
-  async prepare(@Query("organizationId") organizationId: string, @Param("id") id: string, @CurrentUser() user: any) {
+  async prepare(@CurrentOrganization() organizationId: string, @Param("id") id: string, @CurrentUser() user: any) {
     const campaign = await this.campaigns.prepare(organizationId, id, user.id);
     // Kick off personalization; inline-safe (no queue dependency).
     void this.runPreparation(id).catch(() => undefined);
@@ -66,14 +67,14 @@ export class CampaignsController {
   @Get(":id/dry-run")
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.campaigns.manage")
-  async dryRun(@Query("organizationId") organizationId: string, @Param("id") id: string) {
+  async dryRun(@CurrentOrganization() organizationId: string, @Param("id") id: string) {
     return this.campaigns.dryRun(organizationId, id);
   }
 
   @Get(":id/preview")
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.campaigns.manage")
-  async preview(@Query("organizationId") organizationId: string, @Param("id") id: string) {
+  async preview(@CurrentOrganization() organizationId: string, @Param("id") id: string) {
     return this.campaigns.previewMessages(organizationId, id);
   }
 
@@ -81,7 +82,7 @@ export class CampaignsController {
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.campaigns.manage")
   async regenerate(
-    @Query("organizationId") organizationId: string,
+    @CurrentOrganization() organizationId: string,
     @Param("id") id: string,
     @Param("recipientId") recipientId: string
   ) {
@@ -94,7 +95,7 @@ export class CampaignsController {
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.campaigns.manage")
   async testSend(
-    @Query("organizationId") organizationId: string,
+    @CurrentOrganization() organizationId: string,
     @Param("id") id: string,
     @Body("recipientId") recipientId: string,
     @CurrentUser() user: any
@@ -105,7 +106,7 @@ export class CampaignsController {
   @Post(":id/start")
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.campaigns.start")
-  async start(@Query("organizationId") organizationId: string, @Param("id") id: string, @CurrentUser() user: any) {
+  async start(@CurrentOrganization() organizationId: string, @Param("id") id: string, @CurrentUser() user: any) {
     const campaign = await this.campaigns.start(organizationId, id, user.id);
     void this.runDispatch(id).catch(() => undefined);
     return campaign;
@@ -114,14 +115,14 @@ export class CampaignsController {
   @Post(":id/pause")
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.campaigns.start")
-  async pause(@Query("organizationId") organizationId: string, @Param("id") id: string, @CurrentUser() user: any) {
+  async pause(@CurrentOrganization() organizationId: string, @Param("id") id: string, @CurrentUser() user: any) {
     return this.campaigns.pause(organizationId, id, user.id);
   }
 
   @Post(":id/resume")
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.campaigns.start")
-  async resume(@Query("organizationId") organizationId: string, @Param("id") id: string, @CurrentUser() user: any) {
+  async resume(@CurrentOrganization() organizationId: string, @Param("id") id: string, @CurrentUser() user: any) {
     const campaign = await this.campaigns.start(organizationId, id, user.id);
     void this.runDispatch(id).catch(() => undefined);
     return campaign;
@@ -130,7 +131,7 @@ export class CampaignsController {
   @Post(":id/cancel")
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.campaigns.manage")
-  async cancel(@Query("organizationId") organizationId: string, @Param("id") id: string, @CurrentUser() user: any) {
+  async cancel(@CurrentOrganization() organizationId: string, @Param("id") id: string, @CurrentUser() user: any) {
     return this.campaigns.cancel(organizationId, id, user.id);
   }
 

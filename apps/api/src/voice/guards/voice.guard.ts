@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from "@nestjs/common";
 import { VOICE_CAPABILITIES } from "@qanoai/permissions";
 import { MarketingEntitlementsService } from "../../marketing/entitlements.service";
+import { resolveMembership } from "../../common/guards/resolve-membership";
 
 /**
  * Gate for every voice management route: resolves the caller's ACTIVE
@@ -19,15 +20,15 @@ export class VoiceGuard implements CanActivate {
     const user = request.user;
     if (!user) throw new ForbiddenException("VOICE_MODULE_DISABLED");
 
-    const orgId =
-      request.params?.organizationId || request.body?.organizationId || request.query?.organizationId;
-    const activeMemberships = (user.memberships || []).filter((m: any) => m.status === "ACTIVE");
-    const membership = orgId
-      ? activeMemberships.find((m: any) => m.organizationId === orgId)
-      : activeMemberships[0];
-
-    if (!membership) throw new ForbiddenException("VOICE_MODULE_DISABLED");
-    request.membership = membership;
+    // Delegates to the single tenant resolver rather than reimplementing it.
+    //
+    // This guard used to carry its own copy of the OLD permissive logic —
+    // including the `activeMemberships[0]` fallback that resolve-membership.ts
+    // exists to remove. Nest runs class-level guards before route-level ones,
+    // so this ran FIRST and wrote request.membership; PermissionGuard then
+    // short-circuited on it and never reached the hardened path. Every route in
+    // this module was still resolving tenants the old way.
+    const membership = resolveMembership(request);
 
     const enabled = await this.entitlements.isEnabled(
       membership.organizationId,

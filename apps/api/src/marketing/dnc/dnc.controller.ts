@@ -6,6 +6,7 @@ import { RequirePermission } from "../../common/decorators/require-permission.de
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { MarketingGuard } from "../guards/marketing.guard";
 import { DncService } from "./dnc.service";
+import { CurrentOrganization } from "../../common/decorators/current-organization.decorator";
 
 @ApiTags("Marketing — Do Not Contact")
 @Controller({ path: "marketing/dnc", version: "1" })
@@ -18,7 +19,7 @@ export class DncController {
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.read")
   async list(
-    @Query("organizationId") organizationId: string,
+    @CurrentOrganization() organizationId: string,
     @Query("page") page?: string,
     @Query("limit") limit?: string
   ) {
@@ -36,7 +37,7 @@ export class DncController {
   @UseGuards(PermissionGuard)
   @RequirePermission("marketing.dnc.manage")
   async remove(
-    @Query("organizationId") organizationId: string,
+    @CurrentOrganization() organizationId: string,
     @Param("id") id: string,
     @CurrentUser() user: any
   ) {

@@ -200,6 +200,23 @@ export class WhatsAppService {
 
     const skipped = normalized.length - known.length;
 
+    // Check the gate once BEFORE reporting success. broadcast() returns
+    // immediately and sends in the background, so an operator who starts one at
+    // 23:00 was told "queued: 40" and got zero messages sent, with nothing in
+    // the UI to say why.
+    const sample = known[0]
+      ? await this.outboundGuard.check({
+          organizationId,
+          toPhone: known[0].primaryPhone,
+          kind: "MARKETING",
+          contactId: known[0].id,
+        })
+      : { allowed: true as boolean, reason: undefined as string | undefined };
+
+    if (!sample.allowed && (sample.reason === "QUIET_HOURS" || sample.reason === "KILL_SWITCH_ENABLED" || sample.reason === "DAILY_CAP_REACHED")) {
+      throw new BadRequestException(sample.reason);
+    }
+
     this.processBroadcast(connection, known, text).catch((e) =>
       this.logger.error(`Broadcast failed: ${e.message}`)
     );
@@ -217,6 +234,11 @@ export class WhatsAppService {
     contacts: Array<{ id: string; primaryPhone: string; normalizedPhone: string }>,
     text: string
   ): Promise<void> {
+    // Collected so the run can be reported rather than only logged. A broadcast
+    // started at 23:00 is entirely blocked by quiet hours, and the caller was
+    // told "queued: 40" before any of that was known.
+    const skippedReasons: string[] = [];
+
     for (const contact of contacts) {
       try {
         const gate = await this.outboundGuard.check({
@@ -226,6 +248,7 @@ export class WhatsAppService {
           contactId: contact.id,
         });
         if (!gate.allowed) {
+          skippedReasons.push(gate.reason ?? "BLOCKED");
           this.logger.warn(`Broadcast skipped contact ${contact.id}: ${gate.reason}`);
           continue;
         }
@@ -278,8 +301,19 @@ export class WhatsAppService {
         // Pace it. Sending as fast as the API allows is what gets a number banned.
         await new Promise((resolve) => setTimeout(resolve, 2000));
       } catch (e: any) {
+        skippedReasons.push("SEND_FAILED");
         this.logger.error(`Broadcast message to contact ${contact.id} failed: ${e.message}`);
       }
+    }
+
+    if (skippedReasons.length > 0) {
+      const counts = skippedReasons.reduce<Record<string, number>>((acc, r) => {
+        acc[r] = (acc[r] ?? 0) + 1;
+        return acc;
+      }, {});
+      this.logger.warn(
+        `Broadcast finished with ${skippedReasons.length} skipped of ${contacts.length}: ${JSON.stringify(counts)}`
+      );
     }
   }
 

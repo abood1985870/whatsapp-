@@ -25,9 +25,31 @@ const membership = (organizationId: string, status = "ACTIVE") => ({
 });
 
 describe("resolveOrganizationId", () => {
-  it("prefers the path parameter", () => {
-    expect(
+  it("REFUSES a request that names two different organizations", () => {
+    // This used to return the path parameter and ignore the query string. But
+    // ~48 handlers read @Query("organizationId") independently, so a request
+    // carrying one id in the body and another in the query was AUTHORISED
+    // against the first and EXECUTED against the second — a cross-tenant write
+    // with no guard violation anywhere. There is no legitimate request that
+    // names two organizations, so disagreement is refused outright.
+    expect(() =>
       resolveOrganizationId(req({ params: { organizationId: "a" }, query: { organizationId: "b" } }))
+    ).toThrow("ORGANIZATION_ID_CONFLICT");
+
+    expect(() =>
+      resolveOrganizationId(req({ body: { organizationId: "a" }, query: { organizationId: "b" } }))
+    ).toThrow("ORGANIZATION_ID_CONFLICT");
+
+    expect(() =>
+      resolveOrganizationId(
+        req({ query: { organizationId: "a" }, headers: { "x-organization-id": "b" } })
+      )
+    ).toThrow("ORGANIZATION_ID_CONFLICT");
+  });
+
+  it("accepts the same id repeated in several places", () => {
+    expect(
+      resolveOrganizationId(req({ params: { organizationId: "a" }, query: { organizationId: "a" } }))
     ).toBe("a");
   });
 

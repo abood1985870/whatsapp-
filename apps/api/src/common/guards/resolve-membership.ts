@@ -24,16 +24,35 @@ import { BadRequestException, ForbiddenException } from "@nestjs/common";
  * is not optional — the guard cannot be the only boundary.
  */
 export function resolveOrganizationId(request: any): string | undefined {
-  const fromRequest =
-    request?.params?.organizationId ||
-    request?.body?.organizationId ||
-    request?.query?.organizationId;
-  if (fromRequest) return String(fromRequest);
+  // Collect EVERY place the client could have put an organization id.
+  //
+  // Reading them in priority order and returning the first hit created a
+  // split-brain: this resolver preferred the body, while ~48 handlers read
+  // `@Query("organizationId")` independently. A request carrying one id in the
+  // body and a different one in the query string was authorised against the
+  // first and executed against the second — a cross-tenant write with no
+  // guard violation anywhere.
+  //
+  // Disagreement is now refused outright. There is no legitimate request that
+  // names two different organizations, so this costs nothing and removes the
+  // whole class of mismatch rather than one instance of it.
+  const candidates = [
+    request?.params?.organizationId,
+    request?.body?.organizationId,
+    request?.query?.organizationId,
+    request?.headers?.["x-organization-id"],
+  ]
+    .filter((v) => typeof v === "string" && v.trim())
+    .map((v: string) => v.trim());
 
-  const header = request?.headers?.["x-organization-id"];
-  if (typeof header === "string" && header.trim()) return header.trim();
+  if (candidates.length === 0) return undefined;
 
-  return undefined;
+  const distinct = new Set(candidates);
+  if (distinct.size > 1) {
+    throw new BadRequestException("ORGANIZATION_ID_CONFLICT");
+  }
+
+  return candidates[0];
 }
 
 export function resolveMembership(request: any) {

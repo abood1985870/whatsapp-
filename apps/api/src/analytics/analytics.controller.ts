@@ -5,6 +5,7 @@ import { AuthGuard } from "../common/guards/auth.guard";
 import { PermissionGuard } from "../common/guards/permission.guard";
 import { RequirePermission } from "../common/decorators/require-permission.decorator";
 import { Response } from "express";
+import { CurrentOrganization } from "../common/decorators/current-organization.decorator";
 
 @ApiTags("Analytics")
 @Controller({ path: "analytics", version: "1" })
@@ -16,28 +17,28 @@ export class AnalyticsController {
   @Get("dashboard")
   @UseGuards(PermissionGuard)
   @RequirePermission("analytics.read")
-  async dashboard(@Query("organizationId") organizationId: string, @Query("from") from?: string, @Query("to") to?: string) {
+  async dashboard(@CurrentOrganization() organizationId: string, @Query("from") from?: string, @Query("to") to?: string) {
     return this.analyticsService.getDashboard(organizationId, from, to);
   }
 
   @Get("conversations")
   @UseGuards(PermissionGuard)
   @RequirePermission("analytics.read")
-  async conversations(@Query("organizationId") organizationId: string, @Query("from") from?: string, @Query("to") to?: string) {
+  async conversations(@CurrentOrganization() organizationId: string, @Query("from") from?: string, @Query("to") to?: string) {
     return this.analyticsService.getConversationMetrics(organizationId, from, to);
   }
 
   @Get("agents")
   @UseGuards(PermissionGuard)
   @RequirePermission("analytics.read")
-  async agents(@Query("organizationId") organizationId: string, @Query("from") from?: string, @Query("to") to?: string) {
+  async agents(@CurrentOrganization() organizationId: string, @Query("from") from?: string, @Query("to") to?: string) {
     return this.analyticsService.getAgentMetrics(organizationId, from, to);
   }
 
   @Get("team")
   @UseGuards(PermissionGuard)
   @RequirePermission("analytics.read")
-  async team(@Query("organizationId") organizationId: string, @Query("from") from?: string, @Query("to") to?: string) {
+  async team(@CurrentOrganization() organizationId: string, @Query("from") from?: string, @Query("to") to?: string) {
     return this.analyticsService.getTeamMetrics(organizationId, from, to);
   }
 
@@ -45,7 +46,7 @@ export class AnalyticsController {
   @UseGuards(PermissionGuard)
   @RequirePermission("analytics.read")
   async exportMetrics(
-    @Query("organizationId") organizationId: string, 
+    @CurrentOrganization() organizationId: string, 
     @Query("type") type: string,
     @Query("from") from: string, 
     @Query("to") to: string,
