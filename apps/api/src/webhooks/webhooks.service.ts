@@ -20,18 +20,27 @@ export class WebhooksService {
   ) {}
   
   async processEvolutionWebhook(payload: any, headers: any, query?: any): Promise<any> {
+    // Signature is verified FIRST and unconditionally. There is deliberately no
+    // per-event-type fallback here: a `messages.update` branch used to run even
+    // when the signature check had already failed, which meant one event type
+    // bypassed authentication entirely and wrote across every tenant.
+    if (!this.evolutionProvider.hasValidSignature(payload, headers, query)) {
+      this.logger.warn("Rejected Evolution webhook with invalid or missing signature");
+      return { received: false };
+    }
+
     const event = await this.evolutionProvider.validateWebhook(payload, headers, query);
-    if (!event) { 
-      // It might be a status update that validateWebhook doesn't parse fully, 
-      // but let's try to extract status update from raw payload
+    if (!event) {
+      // Signature already verified above, so this is a shape we do not parse into
+      // a message event. Status updates are the one such shape we still act on.
       if (payload?.event === "messages.update" && payload?.data?.key?.id) {
-        await this.handleMessageUpdate(payload.data);
+        await this.handleMessageUpdate(payload.data, payload?.instance);
         return { received: true, processed: true };
       }
-      this.logger.warn("Invalid webhook payload"); 
-      return { received: false }; 
+      this.logger.warn("Invalid webhook payload");
+      return { received: false };
     }
-    
+
     const connection = await prisma.channelConnection.findFirst({ where: { providerInstanceId: event.instanceId, deletedAt: null } });
     if (!connection) { this.logger.warn(`Connection not found for instance: ${event.instanceId}`); return { received: false }; }
     
@@ -474,22 +483,40 @@ export class WebhooksService {
     return true;
   }
 
-  private async handleMessageUpdate(data: any): Promise<any> {
+  private async handleMessageUpdate(data: any, instanceId?: string): Promise<any> {
     // Example Evolution API payload structure for message status updates
     const messageId = data?.key?.id;
     const update = data?.update;
     let status = "SENT";
-    
+
     if (update?.status === 3) status = "DELIVERED";
     if (update?.status === 4) status = "READ";
     if (update?.error) status = "FAILED";
 
+    // Resolve the owning organization from the instance the event arrived on, so
+    // a status update can never rewrite rows belonging to another tenant that
+    // happens to share a provider message id.
+    const connection = instanceId
+      ? await prisma.channelConnection.findFirst({
+          where: { providerInstanceId: instanceId, deletedAt: null },
+          select: { organizationId: true },
+        })
+      : null;
+    if (!connection) {
+      this.logger.warn(`Ignoring message status update for unknown instance: ${String(instanceId).slice(0, 64)}`);
+      return { received: true, processed: false };
+    }
+    const organizationId = connection.organizationId;
+
     if (messageId) {
-      const matches = await prisma.message.findMany({ where: { providerMessageId: messageId }, select: { id: true, organizationId: true } });
+      const matches = await prisma.message.findMany({ where: { providerMessageId: messageId, organizationId }, select: { id: true, organizationId: true } });
       if (matches.length) {
         await prisma.message.updateMany({
-          where: { providerMessageId: messageId },
-          data: { providerStatus: status, providerErrorMessage: update?.error || null }
+          where: { providerMessageId: messageId, organizationId },
+          data: {
+            providerStatus: status,
+            providerErrorMessage: update?.error ? String(update.error).slice(0, 500) : null
+          }
         });
         for (const m of matches) {
           this.safeEmitToOrganization(m.organizationId, "message:status", { messageId: m.id, status });

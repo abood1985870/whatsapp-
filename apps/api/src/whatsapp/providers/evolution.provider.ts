@@ -89,8 +89,16 @@ export class EvolutionProvider implements WhatsAppProvider {
     return Buffer.from("mock-media-buffer", "utf-8");
   }
 
+  /**
+   * Public signature check, so callers can verify BEFORE dispatching on event
+   * type and cannot accidentally act on an unauthenticated payload.
+   */
+  hasValidSignature(input: unknown, headers: any, query?: any): boolean {
+    return this.isValidSignature(input, headers, query);
+  }
+
   async validateWebhook(input: unknown, headers: any, query?: any): Promise<ValidatedWebhookEvent | null> {
-    try { 
+    try {
       if (!this.isValidSignature(input, headers, query)) {
         this.logger.warn("Rejected Evolution webhook with invalid signature");
         return null;
@@ -135,7 +143,15 @@ export class EvolutionProvider implements WhatsAppProvider {
   }
 
   private isValidSignature(input: unknown, headers: any, query?: any): boolean {
-    if (!config.EVOLUTION_WEBHOOK_SECRET) return true;
+    // Fail CLOSED. An unset secret previously accepted every unsigned request,
+    // which left the public webhook endpoint open to anyone who knew the URL.
+    if (!config.EVOLUTION_WEBHOOK_SECRET) {
+      this.logger.error(
+        "EVOLUTION_WEBHOOK_SECRET is not set - rejecting webhook. " +
+        "Set it in the environment and re-register the webhook, or inbound WhatsApp will not be processed."
+      );
+      return false;
+    }
 
     const webhookSecret = String(headers?.["x-evolution-secret"] || "");
     if (webhookSecret && this.safeCompare(webhookSecret, config.EVOLUTION_WEBHOOK_SECRET)) return true;
