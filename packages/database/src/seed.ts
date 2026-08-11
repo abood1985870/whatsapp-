@@ -129,6 +129,15 @@ async function main() {
 
   console.log("✅ Role permissions assigned");
 
+  // NOTE ON SEED DATA
+  //
+  // The demo contacts use +96650000000x, which is not a routable Saudi mobile
+  // number. The previous values looked like real ones, and a seeded demo
+  // conversation set to AI_AUTOMATIC on a connected WhatsApp instance is a
+  // message to a stranger — sent by the product, from the tenant's number,
+  // because someone ran the seed against an environment that had a live
+  // connection. Demo conversations are HUMAN_ONLY for the same reason.
+
   // Create demo users
   const passwordHash = await bcrypt.hash("DemoPass123!", 12);
 
@@ -188,9 +197,9 @@ async function main() {
   let contacts: any[];
   if (existingContacts === 0) {
     contacts = await Promise.all([
-      prisma.contact.create({ data: { organizationId: org.id, primaryPhone: "+966501234567", normalizedPhone: "966501234567", name: "أحمد محمد", language: "ar", source: "WHATSAPP" } }),
-      prisma.contact.create({ data: { organizationId: org.id, primaryPhone: "+966507654321", normalizedPhone: "966507654321", name: "سارة عبدالله", language: "ar", source: "WHATSAPP" } }),
-      prisma.contact.create({ data: { organizationId: org.id, primaryPhone: "+966501112222", normalizedPhone: "966501112222", name: "خالد العلي", language: "ar", source: "WHATSAPP" } }),
+      prisma.contact.create({ data: { organizationId: org.id, primaryPhone: "+966500000001", normalizedPhone: "966500000001", name: "أحمد محمد", language: "ar", source: "WHATSAPP" } }),
+      prisma.contact.create({ data: { organizationId: org.id, primaryPhone: "+966500000002", normalizedPhone: "966500000002", name: "سارة عبدالله", language: "ar", source: "WHATSAPP" } }),
+      prisma.contact.create({ data: { organizationId: org.id, primaryPhone: "+966500000003", normalizedPhone: "966500000003", name: "خالد العلي", language: "ar", source: "WHATSAPP" } }),
     ]);
   } else {
     contacts = await prisma.contact.findMany({ where: { organizationId: org.id }, take: 3 });
@@ -214,9 +223,9 @@ async function main() {
   const existingConvos = await prisma.conversation.count({ where: { organizationId: org.id } });
   if (existingConvos === 0 && contacts.length >= 3) {
     const conversations = await Promise.all([
-      prisma.conversation.create({ data: { organizationId: org.id, channelConnectionId: channelConnection.id, contactId: contacts[0].id, status: "OPEN", mode: "AI_AUTOMATIC", priority: "MEDIUM" } }),
+      prisma.conversation.create({ data: { organizationId: org.id, channelConnectionId: channelConnection.id, contactId: contacts[0].id, status: "OPEN", mode: "HUMAN_ONLY", priority: "MEDIUM" } }),
       prisma.conversation.create({ data: { organizationId: org.id, channelConnectionId: channelConnection.id, contactId: contacts[1].id, status: "WAITING_FOR_AGENT", mode: "HUMAN_ONLY", priority: "HIGH" } }),
-      prisma.conversation.create({ data: { organizationId: org.id, channelConnectionId: channelConnection.id, contactId: contacts[2].id, status: "RESOLVED", mode: "AI_AUTOMATIC", priority: "LOW" } }),
+      prisma.conversation.create({ data: { organizationId: org.id, channelConnectionId: channelConnection.id, contactId: contacts[2].id, status: "RESOLVED", mode: "HUMAN_ONLY", priority: "LOW" } }),
     ]);
 
     // Create demo messages

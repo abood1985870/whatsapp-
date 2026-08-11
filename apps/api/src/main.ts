@@ -35,16 +35,22 @@ async function bootstrap() {
 
   // Request size limits.
   //
-  // 50mb is far larger than any legitimate JSON body from the frontend, and an
-  // oversized body is parsed before any guard runs. It is NOT reduced here on
-  // purpose: Evolution can be configured to deliver inbound WhatsApp media as
-  // base64 inside the webhook payload, and lowering this without first
-  // confirming that setting on the deployed instance would silently drop
-  // inbound media messages. Reduce it once that is verified — see G-2 in
+  // MAX_UPLOAD_SIZE_MB existed in the config schema and nothing read it, so a
+  // limit an operator configured had no effect anywhere. It drives the parsers
+  // now, with a floor so a mis-set value cannot make the API refuse ordinary
+  // requests.
+  //
+  // The DEFAULT stays at 50mb deliberately, even though that is far larger than
+  // any legitimate JSON body from the frontend. Evolution can be configured to
+  // deliver inbound WhatsApp media as base64 inside the webhook payload, and
+  // lowering it without first confirming that setting on the deployed instance
+  // would silently drop customers' image messages. Lower it by setting
+  // MAX_UPLOAD_SIZE_MB once that is verified — see G-2 in
   // docs/review/TIER1_FINDINGS.md.
+  const bodyLimit = `${Math.max(config.MAX_UPLOAD_SIZE_MB || 50, 2)}mb`;
   const bodyParser = require("body-parser");
-  app.use(bodyParser.json({ limit: "50mb" }));
-  app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
+  app.use(bodyParser.json({ limit: bodyLimit }));
+  app.use(bodyParser.urlencoded({ limit: bodyLimit, extended: true }));
 
   app.enableCors({
     origin: getAllowedOrigins(),

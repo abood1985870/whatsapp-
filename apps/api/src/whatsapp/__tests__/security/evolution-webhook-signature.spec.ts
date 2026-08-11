@@ -96,13 +96,23 @@ describe("Evolution webhook signature", () => {
     const provider = makeProvider();
 
     expect(provider.hasValidSignature(payload, { "x-evolution-secret": SECRET }, {})).toBe(true);
-    expect(provider.hasValidSignature(payload, {}, { secret: SECRET })).toBe(true);
-    expect(provider.hasValidSignature(payload, {}, { token: SECRET })).toBe(true);
     expect(
       provider.hasValidSignature(payload, { "x-evolution-signature": sign(payload, SECRET) }, {})
     ).toBe(true);
     expect(
       provider.hasValidSignature(payload, { "x-hub-signature-256": "sha256=" + sign(payload, SECRET) }, {})
     ).toBe(true);
+  });
+
+  it("no longer accepts the secret from the query string", () => {
+    config.EVOLUTION_WEBHOOK_SECRET = SECRET;
+    const provider = makeProvider();
+
+    // Accepting ?secret= put the shared secret in the webhook URL, where it is
+    // stored in the provider's configuration, written to proxy access logs, and
+    // quoted in any error report that includes the request line. Even the
+    // CORRECT secret is refused there now — the header is the only way in.
+    expect(provider.hasValidSignature(payload, {}, { secret: SECRET })).toBe(false);
+    expect(provider.hasValidSignature(payload, {}, { token: SECRET })).toBe(false);
   });
 });

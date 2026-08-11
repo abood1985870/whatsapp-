@@ -156,8 +156,11 @@ export class EvolutionProvider implements WhatsAppProvider {
     const webhookSecret = String(headers?.["x-evolution-secret"] || "");
     if (webhookSecret && this.safeCompare(webhookSecret, config.EVOLUTION_WEBHOOK_SECRET)) return true;
 
-    const querySecret = String(query?.secret || query?.token || "");
-    if (querySecret && this.safeCompare(querySecret, config.EVOLUTION_WEBHOOK_SECRET)) return true;
+    // The query-string branch is gone. Accepting the shared secret as ?secret=
+    // put it in the webhook URL, which means it lands in the provider's stored
+    // configuration, in proxy access logs, and in any error report that quotes
+    // the request line. A secret that travels in a URL is a secret with a much
+    // larger blast radius than a header. Registration uses the header.
 
     const provided = String(
       headers?.["x-evolution-signature"] ||

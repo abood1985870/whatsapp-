@@ -9,6 +9,25 @@ if (!fs.existsSync(envPath)) {
 }
 dotenv.config({ path: envPath });
 
+/**
+ * Booleans from environment variables.
+ *
+ * `z.coerce.boolean()` is JavaScript truthiness: every non-empty string becomes
+ * true. So REDIS_DISABLED="false" was TRUE, and so was "no", "0" and "off".
+ * Someone writing the obvious thing to keep a feature OFF turned it on — and
+ * for REDIS_DISABLED specifically that silently removed the AI rate limit.
+ */
+export function parseEnvBoolean(value: boolean | string): boolean {
+  if (typeof value === "boolean") return value;
+  const normalized = String(value).trim().toLowerCase();
+  if (["true", "1", "yes", "on"].includes(normalized)) return true;
+  if (["false", "0", "no", "off", ""].includes(normalized)) return false;
+  throw new Error(`Expected a boolean like "true" or "false", received "${value}"`);
+}
+
+const envBoolean = (defaultValue: boolean) =>
+  z.union([z.boolean(), z.string()]).default(defaultValue).transform(parseEnvBoolean);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   APP_NAME: z.string().default("QanoAI WhatsAppSupport"),
@@ -18,11 +37,11 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().optional(),
   DATABASE_URL: z.string().startsWith("postgresql://"),
   REDIS_URL: z.string().default("redis://localhost:6379"),
-  REDIS_DISABLED: z.coerce.boolean().default(false),
-  SUPABASE_URL: z.string().url().optional(),
-  SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
-  SUPABASE_SECRET_KEY: z.string().optional(),
-  SUPABASE_JWKS_URL: z.string().url().optional(),
+  REDIS_DISABLED: envBoolean(false),
+  // SUPABASE_* removed. Four variables described an object-storage and auth
+  // integration that no code ever read, so the configuration surface implied a
+  // capability the product does not have. Postgres is reached through
+  // DATABASE_URL; there is no Supabase client anywhere.
   AUTH_SECRET: z.string().min(32),
   AUTH_ENCRYPTION_KEY: z.string().min(32),
   CREDENTIAL_ENCRYPTION_KEY: z.string().min(32),
@@ -50,8 +69,8 @@ const envSchema = z.object({
   MAX_UPLOAD_SIZE_MB: z.coerce.number().default(50),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   SENTRY_DSN: z.string().optional(),
-  FEATURE_BILLING_ENABLED: z.coerce.boolean().default(false),
-  FEATURE_N8N_ENABLED: z.coerce.boolean().default(false),
+  FEATURE_BILLING_ENABLED: envBoolean(false),
+  FEATURE_N8N_ENABLED: envBoolean(false),
   N8N_WEBHOOK_BASE_URL: z.string().optional(),
   PLATFORM_OWNER_EMAIL: z.string().email().optional(),
   GOOGLE_PLACES_API_KEY: z.string().optional(),
