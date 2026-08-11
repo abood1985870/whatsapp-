@@ -65,8 +65,8 @@ export default function CampaignDetailPage() {
     catch { /* ignore */ } finally { setBusy(null); }
   };
 
-  if (loading) return <div className="p-8 text-gray-500">جاري التحميل...</div>;
-  if (!data) return <div className="p-8 text-gray-500">الحملة غير موجودة.</div>;
+  if (loading) return <div className="p-8 text-muted">جاري التحميل...</div>;
+  if (!data) return <div className="p-8 text-muted">الحملة غير موجودة.</div>;
 
   const c = data.campaign;
   const status = c.status;
@@ -77,29 +77,29 @@ export default function CampaignDetailPage() {
       <div className="flex flex-wrap justify-between items-start gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h2 className="text-xl font-bold text-gray-900">{c.name}</h2>
+            <h2 className="text-xl font-bold text-content">{c.name}</h2>
             <StatusBadge status={status} />
           </div>
-          <p className="text-sm text-gray-500">{c.product?.nameArabic}</p>
+          <p className="text-sm text-muted">{c.product?.nameArabic}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {status === "DRAFT" && <Button className="gap-2" disabled={busy !== null} onClick={() => act("prepare")}><Sparkles className="w-4 h-4" /> تجهيز الرسائل</Button>}
           {(status === "READY" || status === "PAUSED") && <Button className="gap-2" disabled={busy !== null} onClick={() => act("start")}><Play className="w-4 h-4" /> {status === "PAUSED" ? "استئناف" : "بدء الحملة"}</Button>}
           {status === "RUNNING" && <Button variant="outline" className="gap-2" disabled={busy !== null} onClick={() => act("pause")}><Pause className="w-4 h-4" /> إيقاف مؤقت</Button>}
           {["DRAFT", "PREPARING", "READY", "RUNNING", "PAUSED"].includes(status) && (
-            <Button variant="outline" className="gap-2 text-red-600" disabled={busy !== null}
+            <Button variant="outline" className="gap-2 text-danger-600 dark:text-danger-400" disabled={busy !== null}
               onClick={() => { if (confirm("إلغاء الحملة؟")) act("cancel"); }}><X className="w-4 h-4" /> إلغاء</Button>
           )}
         </div>
       </div>
 
-      {msg && <div className="bg-blue-50 text-blue-800 text-sm p-3 rounded-lg">{msg}</div>}
+      {msg && <div className="bg-qano-50 dark:bg-qano-900 text-qano-700 dark:text-qano-300 text-sm p-3 rounded-lg">{msg}</div>}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
         <Stat label="المستقبلون" value={c.totalRecipients} />
-        <Stat label="أُرسلت" value={c.sentCount} color="text-green-600" />
-        <Stat label="ردود" value={c.repliedCount} color="text-indigo-600" />
-        <Stat label="فشل" value={c.failedCount} color="text-red-600" />
+        <Stat label="أُرسلت" value={c.sentCount} color="text-qano-600 dark:text-qano-400" />
+        <Stat label="ردود" value={c.repliedCount} color="text-qano-600 dark:text-qano-400" />
+        <Stat label="فشل" value={c.failedCount} color="text-danger-600 dark:text-danger-400" />
         <Stat label="متخطى" value={c.skippedCount} />
         {Object.entries(data.statusCounts || {}).filter(([k]) => ["SKIPPED_DNC", "SKIPPED_PREVIOUS_CONTACT"].includes(k)).map(([k, v]) => (
           <Stat key={k} label={RECIPIENT_STATUS_AR[k]} value={v as number} />
@@ -118,15 +118,15 @@ export default function CampaignDetailPage() {
       )}
 
       {dryRun && (
-        <div className="bg-white border rounded-lg p-5 shadow-sm">
-          <h3 className="font-bold text-gray-900 mb-3">نتيجة التشغيل التجريبي</h3>
+        <div className="bg-surface border rounded-lg p-5 shadow-sm">
+          <h3 className="font-bold text-content mb-3">نتيجة التشغيل التجريبي</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-            <Stat label="سيُرسل" value={dryRun.report.wouldSend} color="text-green-600" />
-            <Stat label="عدم تواصل" value={dryRun.report.dnc} color="text-red-600" />
+            <Stat label="سيُرسل" value={dryRun.report.wouldSend} color="text-qano-600 dark:text-qano-400" />
+            <Stat label="عدم تواصل" value={dryRun.report.dnc} color="text-danger-600 dark:text-danger-400" />
             <Stat label="سبق التواصل" value={dryRun.report.previouslyContacted} />
             <Stat label="مكرر/ملغى" value={dryRun.report.duplicates} />
             <Stat label="تخصيص معلّق" value={dryRun.report.personalizationPending} />
-            <Stat label="تخصيص فشل" value={dryRun.report.personalizationFailed} color="text-red-600" />
+            <Stat label="تخصيص فشل" value={dryRun.report.personalizationFailed} color="text-danger-600 dark:text-danger-400" />
             <Stat label="أُرسلت سابقاً" value={dryRun.report.alreadySent} />
             <Stat label="ردّت" value={dryRun.report.replied} />
           </div>
@@ -134,48 +134,48 @@ export default function CampaignDetailPage() {
       )}
 
       {previews && (
-        <div className="bg-white border rounded-lg p-5 shadow-sm space-y-3">
-          <h3 className="font-bold text-gray-900">عينات من الرسائل المخصّصة</h3>
+        <div className="bg-surface border rounded-lg p-5 shadow-sm space-y-3">
+          <h3 className="font-bold text-content">عينات من الرسائل المخصّصة</h3>
           {previews.length === 0 ? (
-            <p className="text-sm text-gray-400">لا توجد رسائل جاهزة بعد. شغّل التجهيز أولاً.</p>
+            <p className="text-sm text-faint">لا توجد رسائل جاهزة بعد. شغّل التجهيز أولاً.</p>
           ) : previews.map((p) => (
-            <div key={p.recipientId} className="border rounded-lg p-3 bg-gray-50">
-              <p className="text-xs text-gray-500 mb-1">{p.businessName}</p>
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{p.message}</p>
-              <button className="text-xs text-blue-600 mt-2 hover:underline"
+            <div key={p.recipientId} className="border rounded-lg p-3 bg-surface-2">
+              <p className="text-xs text-muted mb-1">{p.businessName}</p>
+              <p className="text-sm text-content whitespace-pre-wrap">{p.message}</p>
+              <button className="text-xs text-qano-600 dark:text-qano-400 mt-2 hover:underline"
                 onClick={() => act(`recipients/${p.recipientId}/regenerate`)}>إعادة توليد</button>
             </div>
           ))}
         </div>
       )}
 
-      <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
-        <div className="p-4 border-b bg-gray-50/50 font-medium text-gray-700 text-sm">المستقبلون</div>
+      <div className="bg-surface border rounded-lg shadow-sm overflow-hidden">
+        <div className="p-4 border-b bg-surface-2 font-medium text-muted text-sm">المستقبلون</div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-right">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-surface-2 border-b">
               <tr>
-                <th className="px-6 py-3 font-medium text-gray-500">المنشأة</th>
-                <th className="px-6 py-3 font-medium text-gray-500">الجوال</th>
-                <th className="px-6 py-3 font-medium text-gray-500">الحالة</th>
-                <th className="px-6 py-3 font-medium text-gray-500">التخصيص</th>
-                <th className="px-6 py-3 font-medium text-gray-500">خطأ</th>
+                <th className="px-6 py-3 font-medium text-muted">المنشأة</th>
+                <th className="px-6 py-3 font-medium text-muted">الجوال</th>
+                <th className="px-6 py-3 font-medium text-muted">الحالة</th>
+                <th className="px-6 py-3 font-medium text-muted">التخصيص</th>
+                <th className="px-6 py-3 font-medium text-muted">خطأ</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {data.recipients.items.map((r: any) => (
-                <tr key={r.id} className="hover:bg-gray-50/50">
+                <tr key={r.id} className="hover:bg-surface-2">
                   <td className="px-6 py-3 font-medium">{r.lead?.businessName}</td>
-                  <td className="px-6 py-3 text-gray-600" dir="ltr">{r.lead?.rawPhone}</td>
-                  <td className="px-6 py-3"><span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{RECIPIENT_STATUS_AR[r.status] || r.status}</span></td>
-                  <td className="px-6 py-3 text-gray-500 text-xs">{r.personalizationStatus}</td>
-                  <td className="px-6 py-3 text-red-500 text-xs">{r.errorMessage || ""}</td>
+                  <td className="px-6 py-3 text-muted" dir="ltr">{r.lead?.rawPhone}</td>
+                  <td className="px-6 py-3"><span className="text-xs bg-surface-2 px-2 py-0.5 rounded">{RECIPIENT_STATUS_AR[r.status] || r.status}</span></td>
+                  <td className="px-6 py-3 text-muted text-xs">{r.personalizationStatus}</td>
+                  <td className="px-6 py-3 text-danger-500 text-xs">{r.errorMessage || ""}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <div className="p-3 text-xs text-gray-400 border-t">الإجمالي: {data.recipients.total}</div>
+        <div className="p-3 text-xs text-faint border-t">الإجمالي: {data.recipients.total}</div>
       </div>
     </div>
   );
@@ -183,9 +183,9 @@ export default function CampaignDetailPage() {
 
 function Stat({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
-    <div className="bg-white border rounded-lg p-3 shadow-sm text-center">
-      <p className={`text-2xl font-bold ${color || "text-gray-900"}`}>{value ?? 0}</p>
-      <p className="text-[11px] text-gray-500 mt-1">{label}</p>
+    <div className="bg-surface border rounded-lg p-3 shadow-sm text-center">
+      <p className={`text-2xl font-bold ${color || "text-content"}`}>{value ?? 0}</p>
+      <p className="text-[11px] text-muted mt-1">{label}</p>
     </div>
   );
 }

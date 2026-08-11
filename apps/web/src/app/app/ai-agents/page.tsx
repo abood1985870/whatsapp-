@@ -125,8 +125,8 @@ export default function AiAgentsPage() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">وكلاء الذكاء الاصطناعي</h1>
-          <p className="text-gray-500 text-sm">إدارة مساعدين مخصصين للرد على عملاء واتساب تلقائياً.</p>
+          <h1 className="text-2xl font-bold text-content mb-2">وكلاء الذكاء الاصطناعي</h1>
+          <p className="text-muted text-sm">إدارة مساعدين مخصصين للرد على عملاء واتساب تلقائياً.</p>
         </div>
         <Button onClick={() => setIsAddModalOpen(true)} className="gap-2">
           <Plus className="w-4 h-4" />
@@ -134,30 +134,30 @@ export default function AiAgentsPage() {
         </Button>
       </div>
 
-      <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-surface border rounded-lg shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">جاري التحميل...</div>
+          <div className="p-8 text-center text-muted">جاري التحميل...</div>
         ) : agents.length === 0 ? (
-          <div className="p-16 text-center text-gray-500 flex flex-col items-center">
-            <Bot className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="font-medium text-gray-900">لا يوجد وكلاء ذكاء اصطناعي</p>
+          <div className="p-16 text-center text-muted flex flex-col items-center">
+            <Bot className="w-12 h-12 text-faint mb-4" />
+            <p className="font-medium text-content">لا يوجد وكلاء ذكاء اصطناعي</p>
             <p className="text-sm mt-1">أنشئ أول وكيل للرد على استفسارات العملاء تلقائياً.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
             {agents.map((agent) => (
-              <div key={agent.id} className="border rounded-xl p-5 hover:shadow-md transition-shadow">
+              <div key={agent.id} className="border rounded-lg p-5 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-4">
-                  <div className="w-10 h-10 bg-gold-500/10 text-gold-600 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-brand/10 text-brand rounded-lg flex items-center justify-center">
                     <Bot className="w-5 h-5" />
                   </div>
-                  <span className={`px-2 py-1 text-xs rounded-full ${agent.status === "ACTIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+                  <span className={`px-2 py-1 text-xs rounded-full ${agent.status === "ACTIVE" ? "bg-qano-100 dark:bg-qano-800 text-qano-700 dark:text-qano-300" : "bg-surface-2 text-muted"}`}>
                     {agent.status === "ACTIVE" ? "نشط" : "مسودة"}
                   </span>
                 </div>
-                <h3 className="font-bold text-gray-900 text-lg mb-1">{agent.name}</h3>
-                <p className="text-gray-500 text-sm mb-4 line-clamp-2">{agent.description || "بدون وصف"}</p>
-                <div className="flex items-center gap-2 text-xs text-gray-400 mb-6">
+                <h3 className="font-bold text-content text-lg mb-1">{agent.name}</h3>
+                <p className="text-muted text-sm mb-4 line-clamp-2">{agent.description || "بدون وصف"}</p>
+                <div className="flex items-center gap-2 text-xs text-faint mb-6">
                   <span>آخر تحديث: {new Date(agent.updatedAt).toLocaleDateString("ar-SA")}</span>
                 </div>
 
@@ -168,7 +168,7 @@ export default function AiAgentsPage() {
                   </Button>
                   <Button
                     variant="secondary"
-                    className="flex-1 gap-2 text-xs bg-gold-50 hover:bg-gold-100 text-gold-700 border border-gold-200"
+                    className="flex-1 gap-2 text-xs bg-qano-50 dark:bg-qano-900 hover:bg-qano-100 dark:bg-qano-800 text-qano-700 dark:text-qano-300 border border-qano-200 dark:border-qano-800"
                     onClick={() => { setTestAgent(agent); setTestInput(""); setTestResult(null); }}
                   >
                     <Play className="w-3.5 h-3.5" />
@@ -184,7 +184,7 @@ export default function AiAgentsPage() {
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="إنشاء وكيل ذكاء اصطناعي">
         <div className="space-y-4 pt-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">اسم الوكيل</label>
+            <label className="block text-sm font-medium text-muted mb-1">اسم الوكيل</label>
             <Input
               value={newAgentData.name}
               onChange={(e) => setNewAgentData({ ...newAgentData, name: e.target.value })}
@@ -192,9 +192,9 @@ export default function AiAgentsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">الوصف</label>
+            <label className="block text-sm font-medium text-muted mb-1">الوصف</label>
             <textarea
-              className="w-full rounded-md border border-gray-200 p-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 min-h-[80px]"
+              className="w-full rounded border border-line p-3 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand min-h-[80px]"
               value={newAgentData.description}
               onChange={(e) => setNewAgentData({ ...newAgentData, description: e.target.value })}
               placeholder="وصف قصير لدور هذا الوكيل..."
@@ -203,28 +203,28 @@ export default function AiAgentsPage() {
           <Button className="w-full" onClick={handleAddAgent} disabled={!newAgentData.name.trim()}>
             إنشاء الوكيل
           </Button>
-          <p className="text-xs text-gray-400 text-center">بعد الإنشاء، افتح الإعدادات واكتب تعليمات الوكيل ثم انشره.</p>
+          <p className="text-xs text-faint text-center">بعد الإنشاء، افتح الإعدادات واكتب تعليمات الوكيل ثم انشره.</p>
         </div>
       </Modal>
 
       <Modal isOpen={!!configAgent} onClose={() => setConfigAgent(null)} title={`إعدادات: ${configAgent?.name || ""}`}>
         <div className="space-y-4 pt-2 max-h-[70vh] overflow-y-auto pl-1">
           {configFeedback && (
-            <div className={`px-3 py-2 rounded-lg text-sm ${configFeedback.includes("خطأ") ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+            <div className={`px-3 py-2 rounded-lg text-sm ${configFeedback.includes("خطأ") ? "bg-danger-50 dark:bg-danger-600/10 text-danger-600 dark:text-danger-400" : "bg-qano-50 dark:bg-qano-900 text-qano-700 dark:text-qano-300"}`}>
               {configFeedback}
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">تعليمات الوكيل</label>
+            <label className="block text-sm font-medium text-muted mb-1">تعليمات الوكيل</label>
             <textarea
-              className="w-full rounded-md border border-gray-200 p-3 text-sm min-h-[140px]"
+              className="w-full rounded border border-line p-3 text-sm min-h-[140px]"
               value={configData.systemInstructions}
               onChange={(e) => setConfigData({ ...configData, systemInstructions: e.target.value })}
               placeholder="مثال: أنت مساعد دعم عربي. أجب باختصار ووضوح، ولا تخترع معلومات غير موجودة."
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">رسالة التحويل لموظف</label>
+            <label className="block text-sm font-medium text-muted mb-1">رسالة التحويل لموظف</label>
             <Input
               value={configData.handoffMessage}
               onChange={(e) => setConfigData({ ...configData, handoffMessage: e.target.value })}
@@ -232,20 +232,20 @@ export default function AiAgentsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">رسالة بديلة</label>
+            <label className="block text-sm font-medium text-muted mb-1">رسالة بديلة</label>
             <Input
               value={configData.fallbackMessage}
               onChange={(e) => setConfigData({ ...configData, fallbackMessage: e.target.value })}
               placeholder="لم أتمكن من الإجابة بدقة، سأحوّلك للدعم."
             />
           </div>
-          <div className="border rounded-lg p-4 space-y-3 bg-gray-50">
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
-              <PhoneCall className="w-4 h-4 text-gold-600" />
+          <div className="border rounded-lg p-4 space-y-3 bg-surface-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-content">
+              <PhoneCall className="w-4 h-4 text-brand" />
               رقم الدعم والتعلم التلقائي
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">رقم دعم هذا الوكيل</label>
+              <label className="block text-sm font-medium text-muted mb-1">رقم دعم هذا الوكيل</label>
               <Input
                 value={configData.supportPhoneNumber}
                 onChange={(e) => setConfigData({ ...configData, supportPhoneNumber: e.target.value })}
@@ -253,7 +253,7 @@ export default function AiAgentsPage() {
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+              <label className="flex items-center gap-2 text-sm text-muted">
                 <input
                   type="checkbox"
                   checked={configData.autoLearningEnabled}
@@ -261,12 +261,12 @@ export default function AiAgentsPage() {
                 />
                 حفظ إجابات الدعم تلقائيا
               </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <Database className="w-4 h-4 text-gray-400" />
+              <label className="flex items-center gap-2 text-sm text-muted">
+                <Database className="w-4 h-4 text-faint" />
                 <select
                   value={configData.learningScope}
                   onChange={(e) => setConfigData({ ...configData, learningScope: e.target.value })}
-                  className="flex-1 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm"
+                  className="flex-1 rounded border border-line bg-surface px-3 py-2 text-sm"
                 >
                   <option value="AGENT">لهذا الوكيل فقط</option>
                   <option value="ORGANIZATION">لكل وكلاء الحساب</option>
@@ -276,7 +276,7 @@ export default function AiAgentsPage() {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">حد الثقة</label>
+              <label className="block text-sm font-medium text-muted mb-1">حد الثقة</label>
               <Input
                 type="number"
                 step="0.05"
@@ -287,7 +287,7 @@ export default function AiAgentsPage() {
               />
             </div>
             <div className="flex flex-col justify-end gap-2 pb-1">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+              <label className="flex items-center gap-2 text-sm text-muted">
                 <input
                   type="checkbox"
                   checked={configData.autoReplyEnabled}
@@ -295,7 +295,7 @@ export default function AiAgentsPage() {
                 />
                 الرد الآلي مفعّل
               </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+              <label className="flex items-center gap-2 text-sm text-muted">
                 <input
                   type="checkbox"
                   checked={configData.workingHoursOnly}
@@ -327,21 +327,21 @@ export default function AiAgentsPage() {
             </Button>
           </div>
 
-          {testBusy && <div className="text-center text-gray-400 text-sm py-6">الوكيل يفكر...</div>}
+          {testBusy && <div className="text-center text-faint text-sm py-6">الوكيل يفكر...</div>}
 
           {testResult && !testResult.error && (
-            <div className="border rounded-lg p-4 bg-gray-50 space-y-3">
+            <div className="border rounded-lg p-4 bg-surface-2 space-y-3">
               <div className="flex items-center gap-2 text-xs">
-                <span className={`px-2 py-1 rounded-full ${testResult.decision === "REPLY" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                <span className={`px-2 py-1 rounded-full ${testResult.decision === "REPLY" ? "bg-qano-100 dark:bg-qano-800 text-qano-700 dark:text-qano-300" : "bg-alert-100 dark:bg-alert-700/30 text-alert-700 dark:text-alert-300"}`}>
                   {decisionLabel(testResult.decision)}
                 </span>
-                <span className="text-gray-500">الثقة: {Math.round((testResult.confidence || 0) * 100)}%</span>
-                <span className="text-gray-400">{testResult.latencyMs}ms</span>
+                <span className="text-muted">الثقة: {Math.round((testResult.confidence || 0) * 100)}%</span>
+                <span className="text-faint">{testResult.latencyMs}ms</span>
               </div>
               {testResult.output ? (
-                <div className="bg-white border rounded-lg p-3 text-sm text-gray-800 whitespace-pre-wrap">{testResult.output}</div>
+                <div className="bg-surface border rounded-lg p-3 text-sm text-content whitespace-pre-wrap">{testResult.output}</div>
               ) : (
-                <div className="text-sm text-gray-500 flex items-center gap-2">
+                <div className="text-sm text-muted flex items-center gap-2">
                   <UserCheck className="w-4 h-4" />
                   {testResult.reason}
                 </div>
@@ -350,7 +350,7 @@ export default function AiAgentsPage() {
           )}
 
           {testResult?.error && (
-            <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg p-3 text-sm">{testResult.error}</div>
+            <div className="bg-danger-50 dark:bg-danger-600/10 text-danger-600 dark:text-danger-400 border border-danger-500/30 rounded-lg p-3 text-sm">{testResult.error}</div>
           )}
         </div>
       </Modal>

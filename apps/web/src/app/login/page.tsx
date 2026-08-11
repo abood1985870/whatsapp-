@@ -1,9 +1,19 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff, MessageCircle } from "lucide-react";
+import { Eye, EyeOff, Bot, Hand, UserRound } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Input, Field } from "@/components/ui/input";
 
+/**
+ * Login.
+ *
+ * Two panels: the form on a clean surface, and — on wide screens — the duty
+ * board itself, dark, showing the one idea the product is built on. Someone
+ * signing in for the first time learns the colour language before they have
+ * an account to use it in.
+ */
 export default function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
@@ -19,65 +29,138 @@ export default function LoginPage() {
     try {
       const data = await login(email, password);
       const isPlatformOwner = (data.memberships || []).some(
-        (membership: any) => membership.status === "ACTIVE" && membership.role?.name === "PLATFORM_SUPER_ADMIN"
+        (membership: any) =>
+          membership.status === "ACTIVE" && membership.role?.name === "PLATFORM_SUPER_ADMIN"
       );
       window.location.href = isPlatformOwner ? "/app/platform" : "/app/inbox";
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || "خطأ في تسجيل الدخول");
+      setError(err.response?.data?.error?.message || "تعذّر تسجيل الدخول. تأكد من البريد وكلمة المرور.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-charcoal-900 flex items-center justify-center p-4" dir="rtl">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-gold-500 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <MessageCircle className="w-7 h-7 text-charcoal-900" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">تسجيل الدخول</h1>
-          <p className="text-gray-400 mt-1">أهلاً بك في QanoAI</p>
+    <div className="min-h-screen grid lg:grid-cols-[1fr_minmax(0,520px)] bg-bg" dir="rtl">
+      {/* الجانب التعريفي — يظهر على الشاشات الواسعة فقط */}
+      <aside className="hidden lg:flex flex-col justify-between bg-frame text-frame-text p-12">
+        <div className="flex items-center gap-2.5">
+          <span className="w-8 h-8 rounded bg-qano-500 grid place-items-center">
+            <Bot className="w-[18px] h-[18px] text-white" />
+          </span>
+          <span className="text-[15px] font-semibold tracking-tight">QanoAI</span>
         </div>
-        <form onSubmit={handleSubmit} className="bg-charcoal-800 border border-white/10 rounded-2xl p-6 space-y-4">
-          {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg text-sm">{error}</div>}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">البريد الإلكتروني</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full bg-charcoal-900 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-gold-500 transition"
-              placeholder="you@company.com"
-              dir="ltr"
-            />
+
+        <div className="max-w-md">
+          <p className="eyebrow text-frame-muted mb-4">لوحة المناوبة</p>
+          <h2 className="text-display font-semibold leading-snug">
+            تعرف في لحظة
+            <br />
+            من يتولّى كل محادثة.
+          </h2>
+          <p className="text-label text-frame-muted mt-4 leading-relaxed">
+            كل صف في النظام يحمل شريطاً على حافته يقول من المسؤول عنه الآن — بدون
+            ما تفتحه.
+          </p>
+
+          <ul className="mt-8 space-y-3">
+            {[
+              { icon: Bot, color: "bg-qano-500", text: "يتولّاها الموظف الذكي", note: "ما تحتاج تتدخّل" },
+              { icon: Hand, color: "bg-alert-400", text: "بانتظارك", note: "تحتاج ردّ إنسان" },
+              { icon: UserRound, color: "bg-ink-500", text: "يتولّاها موظف", note: "أحد من فريقك ماسكها" },
+            ].map((row) => (
+              <li
+                key={row.text}
+                className="relative flex items-center gap-3 rounded bg-frame-2 py-3 pe-4 ps-4 overflow-hidden"
+              >
+                <span className={`absolute inset-y-0 start-0 w-[3px] ${row.color}`} />
+                <span className="w-7 h-7 rounded-sm bg-white/5 grid place-items-center shrink-0">
+                  <row.icon className="w-4 h-4 text-frame-text" />
+                </span>
+                <span className="text-label font-medium">{row.text}</span>
+                <span className="text-micro text-frame-muted ms-auto">{row.note}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="text-micro text-frame-muted">منصة سعودية لدعم العملاء عبر واتساب والمكالمات.</p>
+      </aside>
+
+      {/* النموذج */}
+      <main className="flex items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-sm">
+          <div className="lg:hidden flex items-center gap-2.5 mb-10">
+            <span className="w-8 h-8 rounded bg-brand grid place-items-center">
+              <Bot className="w-[18px] h-[18px] text-brand-fg" />
+            </span>
+            <span className="text-[15px] font-semibold tracking-tight text-content">QanoAI</span>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">كلمة المرور</label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+
+          <h1 className="text-title font-semibold text-content">تسجيل الدخول</h1>
+          <p className="text-label text-muted mt-1 mb-8">ادخل إلى لوحة المناوبة الخاصة بمنشأتك.</p>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div
+                role="alert"
+                className="rounded border border-danger-500/30 bg-danger-50 dark:bg-danger-600/10 px-4 py-3 text-label text-danger-600 dark:text-danger-400"
+              >
+                {error}
+              </div>
+            )}
+
+            <Field label="البريد الإلكتروني" htmlFor="email" required>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full bg-charcoal-900 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-gold-500 transition pr-10"
-                placeholder="••••••••"
+                autoComplete="email"
+                placeholder="you@company.com"
                 dir="ltr"
+                className="text-start"
               />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-          <button type="submit" disabled={loading} className="w-full bg-gold-500 text-charcoal-900 font-bold py-3 rounded-lg hover:bg-gold-400 transition disabled:opacity-50">
-            {loading ? "جاري الدخول..." : "تسجيل الدخول"}
-          </button>
-        </form>
-        <p className="text-center text-gray-500 mt-6 text-sm">
-          ما عندك حساب؟ <Link href="/register" className="text-gold-500 hover:text-gold-400">سجل الآن</Link>
-        </p>
-      </div>
+            </Field>
+
+            <Field label="كلمة المرور" htmlFor="password" required>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  dir="ltr"
+                  className="text-start pe-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
+                  className="absolute inset-y-0 end-0 px-3 grid place-items-center text-faint hover:text-content transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </Field>
+
+            <Button type="submit" size="lg" loading={loading} className="w-full">
+              {loading ? "جارٍ الدخول…" : "دخول"}
+            </Button>
+          </form>
+
+          <p className="text-label text-muted text-center mt-8">
+            ما عندك حساب؟{" "}
+            <Link href="/register" className="text-brand font-medium hover:underline underline-offset-4">
+              سجّل الآن
+            </Link>
+          </p>
+        </div>
+      </main>
     </div>
   );
 }

@@ -109,12 +109,12 @@ export default function VoiceSetupPage() {
     }));
   };
 
-  if (loading) return <div className="p-8 text-gray-500">جاري التحميل...</div>;
+  if (loading) return <div className="p-8 text-muted">جاري التحميل...</div>;
 
   return (
     <div className="p-8 max-w-3xl space-y-6">
-      {message && <div className="bg-green-50 text-green-800 text-sm p-3 rounded-lg flex items-center gap-2"><Check className="w-4 h-4" /> {message}</div>}
-      {error && <div className="bg-red-50 text-red-700 text-sm p-3 rounded-lg">{error}</div>}
+      {message && <div className="bg-qano-50 dark:bg-qano-900 text-qano-700 dark:text-qano-300 text-sm p-3 rounded-lg flex items-center gap-2"><Check className="w-4 h-4" /> {message}</div>}
+      {error && <div className="bg-danger-50 dark:bg-danger-600/10 text-danger-600 dark:text-danger-400 text-sm p-3 rounded-lg">{error}</div>}
 
       <Section title="١. الموظف" desc="اسمه وشخصيته كما سيعرّف عن نفسه في المكالمة">
         <Field label="اسم الإعداد الداخلي"><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
@@ -138,7 +138,7 @@ export default function VoiceSetupPage() {
             {STYLES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
         </Field>
-        <p className="text-xs text-gray-500">في كل الأساليب: ممنوع الإلحاح، والاستعجال الزائف، والتقليل من المنافسين.</p>
+        <p className="text-xs text-muted">في كل الأساليب: ممنوع الإلحاح، والاستعجال الزائف، والتقليل من المنافسين.</p>
       </Section>
 
       <Section title="٣. التحية والختام" desc="أول وآخر ما يسمعه العميل">
@@ -149,13 +149,13 @@ export default function VoiceSetupPage() {
       <Section title="٤. الإجراءات المسموحة" desc="ما يستطيع الموظف تنفيذه أثناء المكالمة. لا شيء مفعّل افتراضياً.">
         <div className="space-y-2">
           {tools.map((t) => (
-            <label key={t.id} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+            <label key={t.id} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-surface-2 cursor-pointer">
               <input type="checkbox" className="mt-1" checked={form.allowedTools.includes(t.id)} onChange={() => toggleTool(t.id)} />
               <div className="flex-1">
-                <p className="text-sm font-medium text-gray-800">{t.id}</p>
-                <p className="text-xs text-gray-500">{t.description}</p>
+                <p className="text-sm font-medium text-content">{t.id}</p>
+                <p className="text-xs text-muted">{t.description}</p>
                 {t.verificationLevel !== "NO_VERIFICATION" && (
-                  <span className="inline-block text-[11px] bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded mt-1">يتطلب تحقق هوية</span>
+                  <span className="inline-block text-[11px] bg-alert-50 dark:bg-alert-700/20 text-alert-700 dark:text-alert-300 px-2 py-0.5 rounded mt-1">يتطلب تحقق هوية</span>
                 )}
               </div>
             </label>
@@ -175,10 +175,10 @@ export default function VoiceSetupPage() {
           <Button variant="outline" onClick={() => setStatus("ACTIVE")} disabled={saving}>تفعيل الموظف الصوتي</Button>
         )}
         {agent?.status === "ACTIVE" && (
-          <Button variant="outline" className="text-red-600" onClick={() => setStatus("PAUSED")} disabled={saving}>إيقاف مؤقت</Button>
+          <Button variant="outline" className="text-danger-600 dark:text-danger-400" onClick={() => setStatus("PAUSED")} disabled={saving}>إيقاف مؤقت</Button>
         )}
         {agent && (
-          <span className="text-sm text-gray-500 flex items-center gap-2">
+          <span className="text-sm text-muted flex items-center gap-2">
             <Bot className="w-4 h-4" />
             الحالة: {agent.status === "ACTIVE" ? "مفعّل" : agent.status === "PAUSED" ? "متوقف" : "مسودة"} — الإصدار {agent.activeVersion}
           </span>
@@ -190,9 +190,9 @@ export default function VoiceSetupPage() {
 
 function Section({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white border rounded-lg p-6 shadow-sm">
-      <h2 className="font-bold text-gray-900">{title}</h2>
-      <p className="text-sm text-gray-500 mb-4">{desc}</p>
+    <div className="bg-surface border rounded-lg p-6 shadow-sm">
+      <h2 className="font-bold text-content">{title}</h2>
+      <p className="text-sm text-muted mb-4">{desc}</p>
       <div className="space-y-3">{children}</div>
     </div>
   );
@@ -201,7 +201,7 @@ function Section({ title, desc, children }: { title: string; desc: string; child
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-muted mb-1">{label}</label>
       {children}
     </div>
   );

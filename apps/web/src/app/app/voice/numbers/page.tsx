@@ -53,9 +53,9 @@ export default function VoiceNumbersPage() {
 
   return (
     <div className="p-8 max-w-3xl space-y-6">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-        <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-        <div className="text-sm text-blue-900">
+      <div className="bg-qano-50 dark:bg-qano-900 border border-qano-200 dark:border-qano-800 rounded-lg p-4 flex items-start gap-3">
+        <Info className="w-5 h-5 text-qano-600 dark:text-qano-400 mt-0.5" />
+        <div className="text-sm text-qano-800 dark:text-qano-200">
           <p className="font-medium mb-1">عن الأرقام السعودية</p>
           <p>
             الأرقام السعودية (+966) لا تُشترى عبر واجهة المزوّد الدولي لجهة غير مرخّصة محلياً. الطريقة العملية هي استخدام
@@ -64,31 +64,31 @@ export default function VoiceNumbersPage() {
         </div>
       </div>
 
-      <div className="bg-white border rounded-lg p-5 shadow-sm">
-        <h2 className="font-bold text-gray-900 mb-3">إضافة رقم</h2>
+      <div className="bg-surface border rounded-lg p-5 shadow-sm">
+        <h2 className="font-bold text-content mb-3">إضافة رقم</h2>
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">رقم الجوال / الهاتف</label>
+            <label className="block text-xs font-medium text-muted mb-1">رقم الجوال / الهاتف</label>
             <Input dir="ltr" placeholder="+966 5X XXX XXXX" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">طريقة الربط</label>
+            <label className="block text-xs font-medium text-muted mb-1">طريقة الربط</label>
             <select className="w-full border rounded-lg p-2.5 text-sm" value={connectionType} onChange={(e) => setConnectionType(e.target.value)}>
               {CONNECTION_TYPES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </div>
-          {error && <div className="bg-red-50 text-red-700 text-sm p-2 rounded">{error}</div>}
+          {error && <div className="bg-danger-50 dark:bg-danger-600/10 text-danger-600 dark:text-danger-400 text-sm p-2 rounded">{error}</div>}
           <Button onClick={add} disabled={saving || !phone}>{saving ? "جاري الإضافة..." : "إضافة الرقم"}</Button>
         </div>
       </div>
 
-      <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-surface border rounded-lg shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">جاري التحميل...</div>
+          <div className="p-8 text-center text-muted">جاري التحميل...</div>
         ) : numbers.length === 0 ? (
-          <div className="p-16 text-center text-gray-500 flex flex-col items-center">
-            <Hash className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="font-medium text-gray-900">لا توجد أرقام</p>
+          <div className="p-16 text-center text-muted flex flex-col items-center">
+            <Hash className="w-12 h-12 text-faint mb-4" />
+            <p className="font-medium text-content">لا توجد أرقام</p>
             <p className="text-sm mt-1">أضف رقمك الحالي لتبدأ استقبال المكالمات.</p>
           </div>
         ) : (
@@ -98,19 +98,19 @@ export default function VoiceNumbersPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-1">
-                      <span className="font-medium text-gray-900" dir="ltr">{n.phoneNumber}</span>
+                      <span className="font-medium text-content" dir="ltr">{n.phoneNumber}</span>
                       <span className={`text-xs px-2 py-0.5 rounded border ${
-                        n.status === "READY" ? "bg-green-50 text-green-700 border-green-200"
-                          : n.status === "ERROR" ? "bg-red-50 text-red-700 border-red-200"
-                          : "bg-yellow-50 text-yellow-700 border-yellow-200"
+                        n.status === "READY" ? "bg-qano-50 dark:bg-qano-900 text-qano-700 dark:text-qano-300 border-qano-200 dark:border-qano-800"
+                          : n.status === "ERROR" ? "bg-danger-50 dark:bg-danger-600/10 text-danger-600 dark:text-danger-400 border-danger-500/30"
+                          : "bg-alert-50 dark:bg-alert-700/20 text-alert-700 dark:text-alert-300 border-alert-300/50"
                       }`}>{NUMBER_STATUS_AR[n.status] || n.status}</span>
                     </div>
-                    <p className="text-xs text-gray-500">المزوّد: {n.provider}</p>
+                    <p className="text-xs text-muted">المزوّد: {n.provider}</p>
                     {n.setupNotes && (
-                      <pre className="text-xs text-gray-600 bg-gray-50 border rounded p-3 mt-2 whitespace-pre-wrap font-sans">{n.setupNotes}</pre>
+                      <pre className="text-xs text-muted bg-surface-2 border rounded p-3 mt-2 whitespace-pre-wrap font-sans">{n.setupNotes}</pre>
                     )}
                   </div>
-                  <button onClick={() => remove(n.id)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => remove(n.id)} className="text-danger-500 hover:text-danger-600 dark:text-danger-400"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             ))}

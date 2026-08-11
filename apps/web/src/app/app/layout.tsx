@@ -4,24 +4,34 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import api from "@/lib/api";
+import { cn } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Inbox, Users, BookOpen, Bot, BarChart3, MessageCircle,
-  Settings, LogOut, ChevronLeft, ShieldCheck, Megaphone, PhoneCall
+  Settings, LogOut, ShieldCheck, Megaphone, PhoneCall, Menu, X
 } from "lucide-react";
 
-const navItems = [
-  { href: "/app/inbox", label: "صندوق الوارد", icon: Inbox },
-  { href: "/app/contacts", label: "جهات الاتصال", icon: Users },
-  { href: "/app/whatsapp", label: "واتساب", icon: MessageCircle },
-  { href: "/app/ai-agents", label: "الذكاء الاصطناعي", icon: Bot },
-  { href: "/app/knowledge", label: "قاعدة المعرفة", icon: BookOpen },
-  { href: "/app/analytics", label: "التحليلات", icon: BarChart3 },
-  { href: "/app/settings", label: "الإعدادات", icon: Settings },
-];
+/**
+ * The frame.
+ *
+ * Dark in both themes — it is the duty board, and the board does not change
+ * colour when the operator changes theme. Navigation is grouped by what the
+ * work *is*, not by which team built the feature:
+ *
+ *   التشغيل — work arriving from customers right now
+ *   الذكاء  — the employees doing that work, and what they know
+ *   النمو   — work you initiate, and the numbers it produces
+ *
+ * The active item carries the same leading-edge rail as every work row in the
+ * product, so the language is consistent from the sidebar down to a message.
+ */
+
+type NavItem = { href: string; label: string; icon: any };
+type NavGroup = { title: string; items: NavItem[] };
 
 function isPlatformOwner(user: any) {
   return (user?.memberships || []).some(
-    (membership: any) => membership.status === "ACTIVE" && membership.role?.name === "PLATFORM_SUPER_ADMIN"
+    (m: any) => m.status === "ACTIVE" && m.role?.name === "PLATFORM_SUPER_ADMIN"
   );
 }
 
@@ -32,6 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const orgId = user?.memberships?.[0]?.organizationId;
   const [marketingEnabled, setMarketingEnabled] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   // Server decides entitlement; UI visibility is convenience only.
   useEffect(() => {
@@ -48,62 +59,158 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => { active = false; };
   }, [orgId]);
 
-  const items = [
-    ...(platformOwner ? [{ href: "/app/platform", label: "مالك المنصة", icon: ShieldCheck }] : []),
-    ...navItems,
-    ...(marketingEnabled ? [{ href: "/app/marketing", label: "التسويق والمبيعات", icon: Megaphone }] : []),
-    ...(voiceEnabled ? [{ href: "/app/voice", label: "الموظف الصوتي", icon: PhoneCall }] : []),
+  // Close the mobile drawer whenever navigation happens.
+  useEffect(() => { setMobileOpen(false); }, [pathname]);
+
+  const groups: NavGroup[] = [
+    {
+      title: "التشغيل",
+      items: [
+        { href: "/app/inbox", label: "صندوق الوارد", icon: Inbox },
+        { href: "/app/contacts", label: "جهات الاتصال", icon: Users },
+        { href: "/app/whatsapp", label: "واتساب", icon: MessageCircle },
+      ],
+    },
+    {
+      title: "الذكاء",
+      items: [
+        { href: "/app/ai-agents", label: "الموظف الذكي", icon: Bot },
+        { href: "/app/knowledge", label: "قاعدة المعرفة", icon: BookOpen },
+        ...(voiceEnabled ? [{ href: "/app/voice", label: "الموظف الصوتي", icon: PhoneCall }] : []),
+      ],
+    },
+    {
+      title: "النمو",
+      items: [
+        ...(marketingEnabled ? [{ href: "/app/marketing", label: "التسويق والمبيعات", icon: Megaphone }] : []),
+        { href: "/app/analytics", label: "التحليلات", icon: BarChart3 },
+      ],
+    },
   ];
 
-  return (
-    <div className="min-h-screen bg-gray-50 flex" dir="rtl">
-      <aside className="w-64 bg-charcoal-900 text-white flex flex-col fixed h-full right-0 top-0 z-50">
-        <div className="p-4 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gold-500 rounded-lg flex items-center justify-center">
-              <MessageCircle className="w-5 h-5 text-charcoal-900" />
-            </div>
-            <span className="font-bold text-lg">QanoAI</span>
-          </div>
-        </div>
+  const footerItems: NavItem[] = [
+    ...(platformOwner ? [{ href: "/app/platform", label: "مالك المنصة", icon: ShieldCheck }] : []),
+    { href: "/app/settings", label: "الإعدادات", icon: Settings },
+  ];
 
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {items.map((item) => {
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + "/");
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition ${
-                  isActive ? "bg-gold-500 text-charcoal-900 font-medium" : "text-gray-400 hover:bg-white/5 hover:text-white"
-                }`}>
-                <Icon className="w-5 h-5" />
-                <span>{item.label}</span>
-                {isActive && <ChevronLeft className="w-4 h-4 mr-auto" />}
-              </Link>
-            );
-          })}
-        </nav>
+  const isActive = (href: string) => pathname === href || pathname?.startsWith(href + "/");
 
-        <div className="p-4 border-t border-white/10">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 bg-gold-500/20 rounded-full flex items-center justify-center text-gold-500 font-bold text-sm">
-              {user?.name?.charAt(0) || "?"}
+  const NavLink = ({ item }: { item: NavItem }) => {
+    const active = isActive(item.href);
+    const Icon = item.icon;
+    return (
+      <Link
+        href={item.href}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "relative flex items-center gap-3 rounded ps-3 pe-3 py-2 text-label transition-colors",
+          active
+            ? "bg-white/[0.07] text-frame-text font-medium"
+            : "text-frame-muted hover:text-frame-text hover:bg-white/[0.04]"
+        )}
+      >
+        {active && (
+          <span className="absolute inset-y-1 start-0 w-[3px] rounded-full bg-frame-brand" aria-hidden />
+        )}
+        <Icon className={cn("w-[18px] h-[18px] shrink-0", active && "text-frame-brand")} />
+        <span className="truncate">{item.label}</span>
+      </Link>
+    );
+  };
+
+  const sidebar = (
+    <div className="flex flex-col h-full bg-frame text-frame-text">
+      <div className="flex items-center gap-2.5 h-14 px-4 border-b border-frame-line shrink-0">
+        <span className="w-7 h-7 rounded bg-qano-500 grid place-items-center shrink-0">
+          <Bot className="w-4 h-4 text-white" />
+        </span>
+        <span className="text-[15px] font-semibold tracking-tight">QanoAI</span>
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="lg:hidden ms-auto grid place-items-center w-8 h-8 rounded text-frame-muted hover:text-frame-text hover:bg-white/5"
+          aria-label="إغلاق القائمة"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+        {groups.map((group) =>
+          group.items.length === 0 ? null : (
+            <div key={group.title}>
+              <p className="eyebrow text-frame-muted/70 px-3 mb-1.5">{group.title}</p>
+              <div className="space-y-0.5">
+                {group.items.map((item) => (
+                  <NavLink key={item.href} item={item} />
+                ))}
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{user?.name || "مستخدم"}</p>
-              <p className="text-xs text-gray-500 truncate">{user?.email || ""}</p>
-            </div>
+          )
+        )}
+      </nav>
+
+      <div className="border-t border-frame-line p-3 space-y-0.5 shrink-0">
+        {footerItems.map((item) => (
+          <NavLink key={item.href} item={item} />
+        ))}
+
+        <div className="flex items-center gap-2.5 pt-3 mt-2 border-t border-frame-line">
+          <span className="w-8 h-8 rounded-full bg-qano-500/15 text-frame-brand grid place-items-center text-label font-semibold shrink-0">
+            {user?.name?.charAt(0) || "؟"}
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-label font-medium truncate leading-tight">{user?.name || "مستخدم"}</p>
+            <p className="text-micro text-frame-muted truncate">{user?.email || ""}</p>
           </div>
-          <button onClick={logout} className="w-full flex items-center gap-2 text-red-400 hover:text-red-300 text-sm px-3 py-2 rounded-lg hover:bg-red-500/10 transition">
+          <ThemeToggle frame />
+          <button
+            onClick={logout}
+            aria-label="تسجيل الخروج"
+            title="تسجيل الخروج"
+            className="grid place-items-center w-9 h-9 rounded text-frame-muted hover:text-danger-400 hover:bg-danger-500/10 transition-colors shrink-0"
+          >
             <LogOut className="w-4 h-4" />
-            تسجيل الخروج
           </button>
         </div>
-      </aside>
+      </div>
+    </div>
+  );
 
-      <main className="flex-1 mr-64">
-        {children}
-      </main>
+  return (
+    <div className="min-h-screen bg-bg" dir="rtl">
+      {/* شريط علوي للجوال */}
+      <header className="lg:hidden sticky top-0 z-40 flex items-center gap-3 h-14 px-4 bg-frame text-frame-text border-b border-frame-line">
+        <button
+          onClick={() => setMobileOpen(true)}
+          aria-label="فتح القائمة"
+          className="grid place-items-center w-9 h-9 -ms-2 rounded text-frame-muted hover:text-frame-text hover:bg-white/5"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <span className="w-7 h-7 rounded bg-qano-500 grid place-items-center">
+          <Bot className="w-4 h-4 text-white" />
+        </span>
+        <span className="text-[15px] font-semibold tracking-tight">QanoAI</span>
+      </header>
+
+      {/* القائمة الجانبية — ثابتة على سطح المكتب.
+          inset-inline-start: يمين في العربي، يسار تلقائياً لو تحوّلت الواجهة
+          إلى الإنجليزية. ما فيه أي قيمة يمين/يسار ثابتة في الهيكل. */}
+      <aside className="hidden lg:block fixed inset-y-0 start-0 w-[248px] z-50">{sidebar}</aside>
+
+      {/* القائمة الجانبية — درج على الجوال */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-ink-950/60"
+            onClick={() => setMobileOpen(false)}
+            aria-hidden
+          />
+          <div className="absolute inset-y-0 start-0 w-[248px] shadow-pop animate-fade-up">{sidebar}</div>
+        </div>
+      )}
+
+      <main className="lg:ms-[248px] min-h-screen">{children}</main>
     </div>
   );
 }

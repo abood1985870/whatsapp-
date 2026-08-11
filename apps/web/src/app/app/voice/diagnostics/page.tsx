@@ -43,15 +43,15 @@ export default function VoiceDiagnosticsPage() {
     finally { setBusy(null); }
   };
 
-  if (loading) return <div className="p-8 text-gray-500">جاري التحميل...</div>;
+  if (loading) return <div className="p-8 text-muted">جاري التحميل...</div>;
 
   return (
     <div className="p-8 max-w-3xl space-y-6">
-      <div className="bg-white border rounded-lg p-6 shadow-sm">
+      <div className="bg-surface border rounded-lg p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="font-bold text-gray-900 flex items-center gap-2"><Activity className="w-5 h-5 text-gray-400" /> حالة المكوّنات</h2>
-            <p className="text-sm text-gray-500">
+            <h2 className="font-bold text-content flex items-center gap-2"><Activity className="w-5 h-5 text-faint" /> حالة المكوّنات</h2>
+            <p className="text-sm text-muted">
               المزوّد: {data?.provider} — {PROVIDER_STATUS_AR[data?.providerStatus] ?? data?.providerStatus}
             </p>
           </div>
@@ -61,22 +61,22 @@ export default function VoiceDiagnosticsPage() {
           {(data?.components ?? []).map((c: any) => (
             <div key={c.name} className="flex items-start justify-between gap-4 py-2 border-b last:border-0">
               <div>
-                <p className="text-sm font-medium text-gray-800">{c.name}</p>
-                {c.detail && <p className="text-xs text-gray-500 mt-0.5">{c.detail}</p>}
+                <p className="text-sm font-medium text-content">{c.name}</p>
+                {c.detail && <p className="text-xs text-muted mt-0.5">{c.detail}</p>}
               </div>
-              <span className={`text-xs px-2 py-0.5 rounded border shrink-0 ${HEALTH_COLOR[c.status] || "bg-gray-100"}`}>
+              <span className={`text-xs px-2 py-0.5 rounded border shrink-0 ${HEALTH_COLOR[c.status] || "bg-surface-2"}`}>
                 {HEALTH_AR[c.status] || c.status}
               </span>
             </div>
           ))}
         </div>
-        <p className="text-xs text-gray-400 mt-4">مكالمات نشطة الآن: {data?.activeCalls ?? 0}</p>
+        <p className="text-xs text-faint mt-4">مكالمات نشطة الآن: {data?.activeCalls ?? 0}</p>
       </div>
 
-      <div className="bg-white border rounded-lg p-6 shadow-sm space-y-4">
+      <div className="bg-surface border rounded-lg p-6 shadow-sm space-y-4">
         <div>
-          <h2 className="font-bold text-gray-900 mb-1">فحوصات الاتصال الحقيقية</h2>
-          <p className="text-sm text-gray-500">كل فحص يجري اتصالاً فعلياً بالخدمة — لا يعتمد على وجود المتغيرات فقط.</p>
+          <h2 className="font-bold text-content mb-1">فحوصات الاتصال الحقيقية</h2>
+          <p className="text-sm text-muted">كل فحص يجري اتصالاً فعلياً بالخدمة — لا يعتمد على وجود المتغيرات فقط.</p>
         </div>
 
         <div className="flex flex-wrap gap-3">
@@ -111,7 +111,7 @@ export default function VoiceDiagnosticsPage() {
 
 function ResultBox({ title, status, ok, detail }: { title: string; status: string; ok: boolean; detail?: string }) {
   return (
-    <div className={`border rounded-lg p-3 text-sm ${ok ? "bg-green-50 border-green-200 text-green-900" : "bg-yellow-50 border-yellow-200 text-yellow-900"}`}>
+    <div className={`border rounded-lg p-3 text-sm ${ok ? "bg-qano-50 dark:bg-qano-900 border-qano-200 dark:border-qano-800 text-qano-800 dark:text-qano-200" : "bg-alert-50 dark:bg-alert-700/20 border-alert-300/50 text-alert-700 dark:text-alert-300"}`}>
       <p className="font-medium">{title}: {status}</p>
       {detail && <p className="text-xs mt-1">{detail}</p>}
     </div>

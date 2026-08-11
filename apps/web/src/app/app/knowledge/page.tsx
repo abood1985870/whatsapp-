@@ -97,8 +97,8 @@ export default function KnowledgePage() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">قاعدة المعرفة</h1>
-          <p className="text-gray-500 text-sm">أضف معلومات مؤسستك ليقوم الذكاء الاصطناعي بالتعلم منها</p>
+          <h1 className="text-2xl font-bold text-content mb-2">قاعدة المعرفة</h1>
+          <p className="text-muted text-sm">أضف معلومات مؤسستك ليقوم الذكاء الاصطناعي بالتعلم منها</p>
         </div>
         <Button onClick={() => activeTab === "bases" ? setIsAddBaseModalOpen(true) : setIsAddFaqModalOpen(true)} className="gap-2">
           <Plus className="w-4 h-4" />
@@ -106,10 +106,10 @@ export default function KnowledgePage() {
         </Button>
       </div>
 
-      <div className="flex border-b border-gray-200 mb-6">
+      <div className="flex border-b border-line mb-6">
         <button
           className={`pb-4 px-6 font-medium text-sm transition-colors border-b-2 ${
-            activeTab === "bases" ? "border-gold-500 text-gold-600" : "border-transparent text-gray-500 hover:text-gray-700"
+            activeTab === "bases" ? "border-brand text-brand" : "border-transparent text-muted hover:text-muted"
           }`}
           onClick={() => setActiveTab("bases")}
         >
@@ -117,7 +117,7 @@ export default function KnowledgePage() {
         </button>
         <button
           className={`pb-4 px-6 font-medium text-sm transition-colors border-b-2 ${
-            activeTab === "faqs" ? "border-gold-500 text-gold-600" : "border-transparent text-gray-500 hover:text-gray-700"
+            activeTab === "faqs" ? "border-brand text-brand" : "border-transparent text-muted hover:text-muted"
           }`}
           onClick={() => setActiveTab("faqs")}
         >
@@ -125,34 +125,34 @@ export default function KnowledgePage() {
         </button>
       </div>
 
-      <div className="bg-white border rounded-lg shadow-sm overflow-hidden min-h-[400px]">
+      <div className="bg-surface border rounded-lg shadow-sm overflow-hidden min-h-[400px]">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">جاري التحميل...</div>
+          <div className="p-8 text-center text-muted">جاري التحميل...</div>
         ) : activeTab === "bases" ? (
           bases.length === 0 ? (
-            <div className="p-16 text-center text-gray-500 flex flex-col items-center">
-              <BookOpen className="w-12 h-12 text-gray-300 mb-4" />
-              <p className="font-medium text-gray-900">لا يوجد قواعد معرفة</p>
+            <div className="p-16 text-center text-muted flex flex-col items-center">
+              <BookOpen className="w-12 h-12 text-faint mb-4" />
+              <p className="font-medium text-content">لا يوجد قواعد معرفة</p>
               <p className="text-sm mt-1">أنشئ قاعدة لرفع ملفات الـ PDF أو إدخال روابط موقعك.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
               {bases.map((base) => (
-                <div key={base.id} className="border rounded-xl p-5 hover:shadow-md transition-shadow flex flex-col">
+                <div key={base.id} className="border rounded-lg p-5 hover:shadow-md transition-shadow flex flex-col">
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
+                    <div className="w-10 h-10 bg-qano-50 dark:bg-qano-900 text-qano-600 dark:text-qano-400 rounded-lg flex items-center justify-center">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-gray-900">{base.name}</h3>
-                      <p className="text-xs text-gray-500">
+                      <h3 className="font-bold text-content">{base.name}</h3>
+                      <p className="text-xs text-muted">
                         {new Date(base.createdAt).toLocaleDateString("ar-SA")}
                         {" · "}
                         {(base.sources?.length || 0)} مصدر
                       </p>
                     </div>
                   </div>
-                  <p className="text-sm text-gray-600 line-clamp-2 flex-1">{base.description}</p>
+                  <p className="text-sm text-muted line-clamp-2 flex-1">{base.description}</p>
                   <Button variant="outline" size="sm" className="mt-4 gap-1 w-full" onClick={() => setDocBase(base)}>
                     <Plus className="w-3 h-3" />
                     إضافة مستند
@@ -163,20 +163,20 @@ export default function KnowledgePage() {
           )
         ) : (
           faqs.length === 0 ? (
-            <div className="p-16 text-center text-gray-500 flex flex-col items-center">
-              <HelpCircle className="w-12 h-12 text-gray-300 mb-4" />
-              <p className="font-medium text-gray-900">لا توجد أسئلة شائعة</p>
+            <div className="p-16 text-center text-muted flex flex-col items-center">
+              <HelpCircle className="w-12 h-12 text-faint mb-4" />
+              <p className="font-medium text-content">لا توجد أسئلة شائعة</p>
               <p className="text-sm mt-1">أضف الأسئلة الشائعة ليجيب عليها الذكاء الاصطناعي مباشرة.</p>
             </div>
           ) : (
             <div className="p-6 space-y-4">
               {faqs.map((faq) => (
-                <div key={faq.id} className="border rounded-lg p-4 bg-gray-50/50">
-                  <h4 className="font-semibold text-gray-900 mb-2 flex items-start gap-2">
-                    <span className="text-gold-500 mt-1"><HelpCircle className="w-4 h-4" /></span>
+                <div key={faq.id} className="border rounded-lg p-4 bg-surface-2">
+                  <h4 className="font-semibold text-content mb-2 flex items-start gap-2">
+                    <span className="text-brand mt-1"><HelpCircle className="w-4 h-4" /></span>
                     {faq.question}
                   </h4>
-                  <p className="text-gray-600 text-sm leading-relaxed mr-6">{faq.answer}</p>
+                  <p className="text-muted text-sm leading-relaxed mr-6">{faq.answer}</p>
                 </div>
               ))}
             </div>
@@ -187,7 +187,7 @@ export default function KnowledgePage() {
       <Modal isOpen={isAddBaseModalOpen} onClose={() => setIsAddBaseModalOpen(false)} title="إنشاء قاعدة معرفة">
         <div className="space-y-4 pt-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">اسم القاعدة</label>
+            <label className="block text-sm font-medium text-muted mb-1">اسم القاعدة</label>
             <Input 
               value={newBase.name} 
               onChange={(e) => setNewBase({...newBase, name: e.target.value})} 
@@ -195,9 +195,9 @@ export default function KnowledgePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">الوصف</label>
+            <label className="block text-sm font-medium text-muted mb-1">الوصف</label>
             <textarea 
-              className="w-full rounded-md border border-gray-200 p-3 text-sm min-h-[80px]"
+              className="w-full rounded border border-line p-3 text-sm min-h-[80px]"
               value={newBase.description} 
               onChange={(e) => setNewBase({...newBase, description: e.target.value})} 
               placeholder="وصف مختصر لمحتوى القاعدة..."
@@ -212,12 +212,12 @@ export default function KnowledgePage() {
       <Modal isOpen={!!docBase} onClose={() => { setDocBase(null); setDocFeedback(null); }} title={`إضافة مستند إلى: ${docBase?.name || ""}`}>
         <div className="space-y-4 pt-2">
           {docFeedback && (
-            <div className={`px-3 py-2 rounded-lg text-sm ${docFeedback.startsWith("فشلت") ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"}`}>
+            <div className={`px-3 py-2 rounded-lg text-sm ${docFeedback.startsWith("فشلت") ? "bg-danger-50 dark:bg-danger-600/10 text-danger-600 dark:text-danger-400" : "bg-qano-50 dark:bg-qano-900 text-qano-700 dark:text-qano-300"}`}>
               {docFeedback}
             </div>
           )}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">عنوان المستند</label>
+            <label className="block text-sm font-medium text-muted mb-1">عنوان المستند</label>
             <Input
               value={newDoc.name}
               onChange={(e) => setNewDoc({ ...newDoc, name: e.target.value })}
@@ -225,14 +225,14 @@ export default function KnowledgePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">المحتوى النصي</label>
+            <label className="block text-sm font-medium text-muted mb-1">المحتوى النصي</label>
             <textarea
-              className="w-full rounded-md border border-gray-200 p-3 text-sm min-h-[180px]"
+              className="w-full rounded border border-line p-3 text-sm min-h-[180px]"
               value={newDoc.content}
               onChange={(e) => setNewDoc({ ...newDoc, content: e.target.value })}
               placeholder="الصق هنا نص المستند أو المعلومات التي تريد أن يتعلمها الذكاء الاصطناعي..."
             />
-            <p className="text-xs text-gray-400 mt-1">رفع ملفات PDF/Word مباشرة سيتوفر في تحديث قادم — حالياً الصق المحتوى كنص.</p>
+            <p className="text-xs text-faint mt-1">رفع ملفات PDF/Word مباشرة سيتوفر في تحديث قادم — حالياً الصق المحتوى كنص.</p>
           </div>
           <Button className="w-full" onClick={handleAddDocument} disabled={docBusy || !newDoc.name.trim() || !newDoc.content.trim()}>
             {docBusy ? "جاري الإضافة..." : "إضافة ومعالجة"}
@@ -243,7 +243,7 @@ export default function KnowledgePage() {
       <Modal isOpen={isAddFaqModalOpen} onClose={() => setIsAddFaqModalOpen(false)} title="إضافة سؤال شائع">
         <div className="space-y-4 pt-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">السؤال</label>
+            <label className="block text-sm font-medium text-muted mb-1">السؤال</label>
             <Input 
               value={newFaq.question} 
               onChange={(e) => setNewFaq({...newFaq, question: e.target.value})} 
@@ -251,9 +251,9 @@ export default function KnowledgePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">الإجابة</label>
+            <label className="block text-sm font-medium text-muted mb-1">الإجابة</label>
             <textarea 
-              className="w-full rounded-md border border-gray-200 p-3 text-sm min-h-[100px]"
+              className="w-full rounded border border-line p-3 text-sm min-h-[100px]"
               value={newFaq.answer} 
               onChange={(e) => setNewFaq({...newFaq, answer: e.target.value})} 
               placeholder="أوقات العمل لدينا هي من الأحد للخميس..."

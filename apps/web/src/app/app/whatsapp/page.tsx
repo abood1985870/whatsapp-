@@ -118,8 +118,8 @@ export default function WhatsAppConnectionsPage() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">اتصالات واتساب</h1>
-          <p className="text-gray-500 text-sm">أكمل ربط الرقم الحالي أولاً. لا يمكن إنشاء ربط جديد قبل اكتمال الأول.</p>
+          <h1 className="text-2xl font-bold text-content mb-2">اتصالات واتساب</h1>
+          <p className="text-muted text-sm">أكمل ربط الرقم الحالي أولاً. لا يمكن إنشاء ربط جديد قبل اكتمال الأول.</p>
         </div>
         <Button
           onClick={() => canCreateNewConnection ? setIsAddModalOpen(true) : setFeedback("أكمل الربط الحالي أولاً أو احذفه قبل إنشاء ربط جديد.")}
@@ -133,7 +133,7 @@ export default function WhatsAppConnectionsPage() {
       </div>
 
       {(feedback || hiddenDuplicates > 0 || activeSetupConnection) && (
-        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 flex gap-3">
+        <div className="mb-5 rounded-lg border border-alert-300/50 bg-alert-50 dark:bg-alert-700/20 p-4 text-sm text-alert-700 dark:text-alert-300 flex gap-3">
           <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
           <div className="space-y-1">
             {activeSetupConnection && <p>يوجد ربط غير مكتمل. امسح QR لهذا الربط أو احذفه قبل إنشاء ربط جديد.</p>}
@@ -143,30 +143,30 @@ export default function WhatsAppConnectionsPage() {
         </div>
       )}
 
-      <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-surface border rounded-lg shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">جاري التحميل...</div>
+          <div className="p-8 text-center text-muted">جاري التحميل...</div>
         ) : !orgId ? (
-          <div className="p-16 text-center text-gray-500 flex flex-col items-center">
-            <MessageCircle className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="font-medium text-gray-900">لا توجد منظمة مرتبطة بالحساب</p>
+          <div className="p-16 text-center text-muted flex flex-col items-center">
+            <MessageCircle className="w-12 h-12 text-faint mb-4" />
+            <p className="font-medium text-content">لا توجد منظمة مرتبطة بالحساب</p>
             <p className="text-sm mt-1">سجل الدخول بحساب عميل فعّال أو اطلب من مالك المنصة إنشاء حساب عميل لك.</p>
           </div>
         ) : visibleConnections.length === 0 ? (
-          <div className="p-16 text-center text-gray-500 flex flex-col items-center">
-            <MessageCircle className="w-12 h-12 text-gray-300 mb-4" />
-            <p className="font-medium text-gray-900">لا توجد اتصالات حالياً</p>
+          <div className="p-16 text-center text-muted flex flex-col items-center">
+            <MessageCircle className="w-12 h-12 text-faint mb-4" />
+            <p className="font-medium text-content">لا توجد اتصالات حالياً</p>
             <p className="text-sm mt-1">أضف رقم واتساب جديد ثم امسح رمز QR من تطبيق واتساب.</p>
           </div>
         ) : (
           <table className="w-full text-sm text-right">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-surface-2 border-b">
               <tr>
-                <th className="px-6 py-4 font-medium text-gray-500">الاسم</th>
-                <th className="px-6 py-4 font-medium text-gray-500">الرقم</th>
-                <th className="px-6 py-4 font-medium text-gray-500">الحالة</th>
-                <th className="px-6 py-4 font-medium text-gray-500">تاريخ الإضافة</th>
-                <th className="px-6 py-4 font-medium text-gray-500 text-left">الإجراءات</th>
+                <th className="px-6 py-4 font-medium text-muted">الاسم</th>
+                <th className="px-6 py-4 font-medium text-muted">الرقم</th>
+                <th className="px-6 py-4 font-medium text-muted">الحالة</th>
+                <th className="px-6 py-4 font-medium text-muted">تاريخ الإضافة</th>
+                <th className="px-6 py-4 font-medium text-muted text-left">الإجراءات</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -174,18 +174,18 @@ export default function WhatsAppConnectionsPage() {
                 const connected = conn.status === "CONNECTED";
                 const pending = pendingStatuses.includes(conn.status);
                 return (
-                  <tr key={conn.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={conn.id} className="hover:bg-surface-2 transition-colors">
                     <td className="px-6 py-4 font-medium">{conn.name}</td>
-                    <td className="px-6 py-4 text-gray-500" dir="ltr">{conn.phoneNumber || "-"}</td>
+                    <td className="px-6 py-4 text-muted" dir="ltr">{conn.phoneNumber || "-"}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        connected ? "bg-green-100 text-green-700" : pending ? "bg-yellow-100 text-yellow-700" : "bg-red-50 text-red-700"
+                        connected ? "bg-qano-100 dark:bg-qano-800 text-qano-700 dark:text-qano-300" : pending ? "bg-alert-100 dark:bg-alert-700/30 text-alert-700 dark:text-alert-300" : "bg-danger-50 dark:bg-danger-600/10 text-danger-600 dark:text-danger-400"
                       }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-500" : pending ? "bg-yellow-500" : "bg-red-500"}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-qano-500" : pending ? "bg-alert-400" : "bg-danger-500"}`}></span>
                         {statusLabel(conn.status)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-gray-500">
+                    <td className="px-6 py-4 text-muted">
                       {new Date(conn.createdAt).toLocaleDateString("ar-SA")}
                     </td>
                     <td className="px-6 py-4 text-left">
@@ -214,7 +214,7 @@ export default function WhatsAppConnectionsPage() {
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="إضافة رقم واتساب جديد">
         <div className="space-y-4 pt-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">اسم الاتصال</label>
+            <label className="block text-sm font-medium text-muted mb-1">اسم الاتصال</label>
             <Input
               value={newConnectionName}
               onChange={(e) => setNewConnectionName(e.target.value)}
@@ -229,18 +229,18 @@ export default function WhatsAppConnectionsPage() {
 
       <Modal isOpen={isQrModalOpen} onClose={() => setIsQrModalOpen(false)} title="ربط واتساب">
         <div className="flex flex-col items-center justify-center p-4 space-y-4">
-          <p className="text-sm text-gray-500 text-center mb-2">
+          <p className="text-sm text-muted text-center mb-2">
             افتح واتساب في الجوال، ثم الأجهزة المرتبطة، وبعدها امسح الرمز. استخدم QR واحد فقط ولا تضغط إنشاء ربط جديد.
           </p>
           {currentQr ? (
-            <img src={currentQr} alt="WhatsApp QR Code" className="w-64 h-64 border rounded-xl shadow-sm" />
+            <img src={currentQr} alt="WhatsApp QR Code" className="w-64 h-64 border rounded-lg shadow-sm" />
           ) : qrError ? (
-            <div className="w-full rounded-xl border border-red-100 bg-red-50 p-4 text-center text-sm text-red-700">
+            <div className="w-full rounded-lg border border-danger-500/30 bg-danger-50 dark:bg-danger-600/10 p-4 text-center text-sm text-danger-600 dark:text-danger-400">
               {qrError}
             </div>
           ) : (
-            <div className="w-64 h-64 border rounded-xl flex items-center justify-center bg-gray-50">
-              <RefreshCw className="w-8 h-8 text-gray-300 animate-spin" />
+            <div className="w-64 h-64 border rounded-lg flex items-center justify-center bg-surface-2">
+              <RefreshCw className="w-8 h-8 text-faint animate-spin" />
             </div>
           )}
           <Button variant="outline" className="w-full mt-4" onClick={() => setIsQrModalOpen(false)}>

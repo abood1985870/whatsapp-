@@ -1,13 +1,15 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import api from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useSocket } from "@/hooks/useSocket";
-import {
-  Search, Filter, MessageSquare, User, Clock,
-  CheckCircle2, AlertCircle, Bot, UserCheck, MoreVertical
-} from "lucide-react";
+import { cn } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { EmptyState, LoadingRows } from "@/components/ui/page";
+import { Phone, Stamp } from "@/components/ui/data";
+import { dutyOf, railClass, DutyBadge, type Duty } from "@/components/ui/duty";
+import { Search, Inbox as InboxIcon, MessageSquare, Building2 } from "lucide-react";
 
 interface Conversation {
   id: string;
@@ -20,12 +22,20 @@ interface Conversation {
   unreadCount?: number;
 }
 
+/**
+ * صندوق الوارد — the duty board.
+ *
+ * The list is sorted by nothing clever: it is the order the API returns,
+ * newest activity first. What changed is that you can now answer "who is on
+ * this?" from the rail alone, and the filters are the duty states themselves
+ * with real counts — so "بانتظارك ٣" is a number you can act on, not a label.
+ */
 export default function InboxPage() {
   const { user, token, loading: authLoading } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<"all" | Duty>("all");
   const [orgId, setOrgId] = useState("");
 
   const { socket, isConnected } = useSocket({ token, enabled: !!orgId });
@@ -44,17 +54,19 @@ export default function InboxPage() {
     if (!socket || !isConnected || !orgId) return;
 
     const handleNewConversation = (newConv: Conversation) => {
-      setConversations((prev) => [newConv, ...prev.filter(c => c.id !== newConv.id)]);
+      setConversations((prev) => [newConv, ...prev.filter((c) => c.id !== newConv.id)]);
     };
 
     const handleUpdateConversation = (updatedConv: Conversation) => {
-      setConversations((prev) => prev.map(c => c.id === updatedConv.id ? { ...c, ...updatedConv } : c));
+      setConversations((prev) =>
+        prev.map((c) => (c.id === updatedConv.id ? { ...c, ...updatedConv } : c))
+      );
     };
 
     const handleNewMessage = (msg: any) => {
       if (msg.conversationId) {
         setConversations((prev) => {
-          const idx = prev.findIndex(c => c.id === msg.conversationId);
+          const idx = prev.findIndex((c) => c.id === msg.conversationId);
           if (idx === -1) return prev;
           const updated = { ...prev[idx], lastMessageAt: msg.createdAt };
           const newList = [...prev];
@@ -86,127 +98,203 @@ export default function InboxPage() {
     }
   };
 
-  const filtered = conversations.filter((c) => {
-    if (search) {
-      const term = search.toLowerCase();
+  const withDuty = useMemo(
+    () =>
+      conversations.map((c) => ({
+        conv: c,
+        duty: dutyOf({ status: c.status, mode: c.mode, assigned: !!c.assignedMembership }),
+      })),
+    [conversations]
+  );
+
+  // Counts come from the loaded list, so they always match what is on screen.
+  const counts = useMemo(() => {
+    const base: Record<string, number> = { all: withDuty.length, auto: 0, alert: 0, human: 0, done: 0 };
+    withDuty.forEach(({ duty }) => { base[duty] += 1; });
+    return base;
+  }, [withDuty]);
+
+  // Search and filter now compose. Previously a search term silently
+  // discarded the active filter.
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return withDuty.filter(({ conv, duty }) => {
+      if (filter !== "all" && duty !== filter) return false;
+      if (!term) return true;
       return (
-        c.contact.name?.toLowerCase().includes(term) ||
-        c.contact.primaryPhone.includes(term)
+        conv.contact.name?.toLowerCase().includes(term) ||
+        conv.contact.primaryPhone.replace(/\D/g, "").includes(term.replace(/\D/g, "")) ||
+        false
       );
-    }
-    if (filter === "unassigned") return !c.assignedMembership;
-    if (filter === "ai") return c.mode === "AI_AUTOMATIC";
-    if (filter === "human") return c.mode === "HUMAN_ONLY";
-    if (filter === "waiting") return c.status === "WAITING_FOR_AGENT";
-    return true;
-  });
+    });
+  }, [withDuty, filter, search]);
 
-  const getStatusIcon = (status: string, mode: string) => {
-    if (mode === "AI_AUTOMATIC") return <Bot className="w-4 h-4 text-blue-500" />;
-    if (status === "RESOLVED") return <CheckCircle2 className="w-4 h-4 text-green-500" />;
-    if (status === "WAITING_FOR_AGENT") return <AlertCircle className="w-4 h-4 text-amber-500" />;
-    return <MessageSquare className="w-4 h-4 text-gray-400" />;
-  };
-
-  const getStatusBadge = (status: string) => {
-    const styles: Record<string, string> = {
-      NEW: "bg-blue-100 text-blue-700",
-      OPEN: "bg-green-100 text-green-700",
-      WAITING_FOR_AGENT: "bg-amber-100 text-amber-700",
-      WAITING_FOR_CUSTOMER: "bg-purple-100 text-purple-700",
-      RESOLVED: "bg-gray-100 text-gray-600",
-      CLOSED: "bg-gray-100 text-gray-500",
-    };
-    return styles[status] || "bg-gray-100 text-gray-600";
-  };
+  const TABS: { key: "all" | Duty; label: string }[] = [
+    { key: "all", label: "الكل" },
+    { key: "alert", label: "بانتظارك" },
+    { key: "auto", label: "آلي" },
+    { key: "human", label: "موظف" },
+    { key: "done", label: "منتهية" },
+  ];
 
   return (
     <div className="h-screen flex flex-col">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="flex items-center justify-between">
+      <header className="shrink-0 bg-surface border-b border-line">
+        <div className="flex items-center justify-between gap-4 px-6 pt-5 pb-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">صندوق الوارد</h1>
-            <p className="text-sm text-gray-500 mt-1">إدارة محادثات العملاء</p>
+            <h1 className="text-title font-semibold text-content">صندوق الوارد</h1>
+            <p className="text-label text-muted mt-0.5 flex items-center gap-2">
+              <span
+                className={cn(
+                  "w-1.5 h-1.5 rounded-full shrink-0",
+                  isConnected ? "bg-qano-500" : "bg-ink-300 dark:bg-ink-600"
+                )}
+                aria-hidden
+              />
+              {isConnected ? "التحديث المباشر يعمل" : "غير متصل بالتحديث المباشر"}
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="w-5 h-5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2" />
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث في المحادثات..." className="pr-10 pl-4 py-2 border border-gray-200 rounded-lg w-64 focus:outline-none focus:border-gold-500 text-sm" />
-            </div>
-            <select value={filter} onChange={(e) => setFilter(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-gold-500">
-              <option value="all">الكل</option>
-              <option value="unassigned">غير مخصص</option>
-              <option value="ai">ذكاء اصطناعي</option>
-              <option value="human">بشري فقط</option>
-              <option value="waiting">بانتظار موظف</option>
-            </select>
+
+          <div className="relative w-72 max-w-full">
+            <Search className="w-4 h-4 text-faint absolute inset-y-0 my-auto start-3 pointer-events-none" />
+            <Input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ابحث باسم العميل أو رقمه…"
+              className="ps-9"
+            />
           </div>
+        </div>
+
+        {/* حالات المناوبة — الأرقام من نفس القائمة المعروضة */}
+        <div className="flex items-center gap-1 px-6 -mb-px overflow-x-auto">
+          {TABS.map((tab) => {
+            const active = filter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setFilter(tab.key)}
+                aria-pressed={active}
+                className={cn(
+                  "relative flex items-center gap-2 px-3 py-2.5 text-label whitespace-nowrap transition-colors",
+                  "border-b-2",
+                  active
+                    ? "border-brand text-content font-medium"
+                    : "border-transparent text-muted hover:text-content"
+                )}
+              >
+                {tab.label}
+                <span
+                  className={cn(
+                    "num text-micro rounded-sm px-1.5 py-0.5",
+                    tab.key === "alert" && counts.alert > 0
+                      ? "bg-alert-50 text-alert-700 dark:bg-alert-700/25 dark:text-alert-300 font-semibold"
+                      : "bg-surface-2 text-faint"
+                  )}
+                >
+                  {counts[tab.key]}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </header>
 
-      {/* Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Conversation List */}
-        <div className="w-96 bg-white border-l border-gray-200 overflow-y-auto">
+        <div className="w-full md:w-[380px] shrink-0 bg-surface border-e border-line overflow-y-auto">
           {loading ? (
-            <div className="p-8 text-center text-gray-400">جاري التحميل...</div>
+            <div className="p-4">
+              <LoadingRows rows={6} />
+            </div>
           ) : !orgId ? (
-            <div className="p-8 text-center">
-              <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">لا توجد منظمة مرتبطة بالحساب</p>
+            <div className="p-4">
+              <EmptyState
+                icon={Building2}
+                title="ما فيه منشأة مرتبطة بحسابك"
+                description="تواصل مع مالك الحساب لإضافتك إلى المنشأة، وبعدها تظهر لك المحادثات هنا."
+              />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="p-8 text-center">
-              <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500">لا توجد محادثات</p>
+            <div className="p-4">
+              <EmptyState
+                icon={InboxIcon}
+                title={search || filter !== "all" ? "ما فيه نتائج" : "الصندوق فاضي"}
+                description={
+                  search || filter !== "all"
+                    ? "جرّب كلمة بحث ثانية أو أزل التصفية."
+                    : "أول ما يوصل عميل رسالة على واتساب، تظهر محادثته هنا مباشرة."
+                }
+              />
             </div>
           ) : (
-            <div className="divide-y divide-gray-100">
-              {filtered.map((conv) => (
-                <Link key={conv.id} href={`/app/inbox/${conv.id}`} className="block p-4 hover:bg-gray-50 transition border-r-2 border-transparent hover:border-gold-500">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 bg-gold-100 rounded-full flex items-center justify-center text-gold-700 font-bold flex-shrink-0">
-                      {conv.contact.name?.charAt(0) || "?"}
-                    </div>
+            <ul className="divide-y divide-line">
+              {filtered.map(({ conv, duty }) => (
+                <li key={conv.id}>
+                  <Link
+                    href={`/app/inbox/${conv.id}`}
+                    className={cn(
+                      railClass(duty),
+                      "flex items-start gap-3 py-3.5 pe-4 ps-4 transition-colors hover:bg-surface-2",
+                      duty === "done" && "opacity-65"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "w-9 h-9 rounded-full grid place-items-center text-label font-semibold shrink-0",
+                        duty === "auto"
+                          ? "bg-qano-50 text-qano-700 dark:bg-qano-900 dark:text-qano-300"
+                          : "bg-surface-2 text-muted"
+                      )}
+                    >
+                      {conv.contact.name?.charAt(0) || "؟"}
+                    </span>
+
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="font-medium text-gray-900 truncate">{conv.contact.name || conv.contact.primaryPhone}</h3>
-                        {conv.lastMessageAt && (
-                          <span className="text-xs text-gray-400">
-                            {new Date(conv.lastMessageAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        )}
+                      <div className="flex items-baseline justify-between gap-2">
+                        <h3 className="text-[14px] font-medium text-content truncate">
+                          {conv.contact.name || <Phone value={conv.contact.primaryPhone} />}
+                        </h3>
+                        <Stamp iso={conv.lastMessageAt} className="shrink-0" />
                       </div>
-                      <div className="flex items-center gap-2 mb-1">
-                        {getStatusIcon(conv.status, conv.mode)}
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${getStatusBadge(conv.status)}`}>
-                          {conv.status === "NEW" ? "جديدة" : conv.status === "OPEN" ? "مفتوحة" : conv.status === "WAITING_FOR_AGENT" ? "بانتظار موظف" : conv.status === "RESOLVED" ? "محلولة" : conv.status}
-                        </span>
-                        {conv.mode === "AI_AUTOMATIC" && <span className="text-xs text-blue-600">AI</span>}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-400">
-                          {conv.assignedMembership ? `مخصص لـ ${conv.assignedMembership.user.name}` : "غير مخصص"}
-                        </span>
-                        {conv.unreadCount ? (
-                          <span className="bg-gold-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">{conv.unreadCount}</span>
-                        ) : null}
+
+                      {conv.contact.name && (
+                        <Phone value={conv.contact.primaryPhone} className="text-micro text-faint" />
+                      )}
+
+                      <div className="flex items-center justify-between gap-2 mt-1.5">
+                        <DutyBadge duty={duty} short />
+                        <div className="flex items-center gap-2 shrink-0">
+                          {conv.assignedMembership && (
+                            <span className="text-micro text-faint truncate max-w-[100px]">
+                              {conv.assignedMembership.user.name}
+                            </span>
+                          )}
+                          {conv.unreadCount ? (
+                            <span className="num bg-brand text-brand-fg text-micro font-semibold min-w-[18px] h-[18px] px-1 rounded-full grid place-items-center">
+                              {conv.unreadCount}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
 
-        {/* Empty State */}
-        <div className="flex-1 bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-600 mb-1">اختر محادثة</h3>
-            <p className="text-gray-400 text-sm">اختر محادثة من القائمة لعرض التفاصيل</p>
+        <div className="hidden md:flex flex-1 items-center justify-center bg-bg px-6">
+          <div className="text-center max-w-xs">
+            <span className="w-12 h-12 rounded-lg bg-surface-2 grid place-items-center mx-auto mb-4">
+              <MessageSquare className="w-5 h-5 text-faint" />
+            </span>
+            <p className="text-[15px] font-semibold text-content">اختر محادثة</p>
+            <p className="text-label text-muted mt-1.5 leading-relaxed">
+              الشريط على حافة كل صف يقول لك من يتولّاها الآن — الأخضر للموظف الذكي،
+              والبرتقالي ينتظر ردّك.
+            </p>
           </div>
         </div>
       </div>

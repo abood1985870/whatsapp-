@@ -81,32 +81,32 @@ export default function ProductsPage() {
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-6">
-        <p className="text-sm text-gray-500">البرامج الجاهزة بأسعارها الثابتة المعتمدة</p>
+        <p className="text-sm text-muted">البرامج الجاهزة بأسعارها الثابتة المعتمدة</p>
         <Button className="gap-2" onClick={openCreate}><Plus className="w-4 h-4" /> برنامج جديد</Button>
       </div>
 
       {loading ? (
-        <div className="p-8 text-center text-gray-500">جاري التحميل...</div>
+        <div className="p-8 text-center text-muted">جاري التحميل...</div>
       ) : products.length === 0 ? (
-        <div className="bg-white border rounded-lg p-16 text-center text-gray-500 flex flex-col items-center">
-          <Package className="w-12 h-12 text-gray-300 mb-4" />
-          <p className="font-medium text-gray-900">لا توجد برامج بعد</p>
+        <div className="bg-surface border rounded-lg p-16 text-center text-muted flex flex-col items-center">
+          <Package className="w-12 h-12 text-faint mb-4" />
+          <p className="font-medium text-content">لا توجد برامج بعد</p>
           <p className="text-sm mt-1">أضف أول برنامج لتبدأ حملاتك.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {products.map((p) => (
-            <div key={p.id} className="bg-white border rounded-lg p-5 shadow-sm">
+            <div key={p.id} className="bg-surface border rounded-lg p-5 shadow-sm">
               <div className="flex justify-between items-start mb-2">
-                <h3 className="font-bold text-gray-900">{p.nameArabic}</h3>
-                <button onClick={() => openEdit(p)} className="text-gray-400 hover:text-gray-700"><Pencil className="w-4 h-4" /></button>
+                <h3 className="font-bold text-content">{p.nameArabic}</h3>
+                <button onClick={() => openEdit(p)} className="text-faint hover:text-muted"><Pencil className="w-4 h-4" /></button>
               </div>
-              <p className="text-sm text-gray-500 mb-3 line-clamp-2 min-h-[2.5rem]">{p.shortDescription || "—"}</p>
+              <p className="text-sm text-muted mb-3 line-clamp-2 min-h-[2.5rem]">{p.shortDescription || "—"}</p>
               <div className="flex items-center justify-between">
-                <span className="text-lg font-bold text-gold-600">{SAR(p.priceMinor)}</span>
+                <span className="text-lg font-bold text-brand">{SAR(p.priceMinor)}</span>
                 <div className="flex gap-2">
-                  {!p.active && <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">غير مفعّل</span>}
-                  <span className="text-xs bg-gold-50 text-gold-700 px-2 py-0.5 rounded">خصم ≤ {p.maxDiscountPercent}%</span>
+                  {!p.active && <span className="text-xs bg-surface-2 text-muted px-2 py-0.5 rounded">غير مفعّل</span>}
+                  <span className="text-xs bg-qano-50 dark:bg-qano-900 text-qano-700 dark:text-qano-300 px-2 py-0.5 rounded">خصم ≤ {p.maxDiscountPercent}%</span>
                 </div>
               </div>
             </div>
@@ -116,7 +116,7 @@ export default function ProductsPage() {
 
       <Modal isOpen={open} onClose={() => setOpen(false)} title={editId ? "تعديل البرنامج" : "برنامج جديد"}>
         <div className="space-y-3 max-h-[70vh] overflow-y-auto pl-1">
-          {error && <div className="bg-red-50 text-red-700 text-sm p-2 rounded">{error}</div>}
+          {error && <div className="bg-danger-50 dark:bg-danger-600/10 text-danger-600 dark:text-danger-400 text-sm p-2 rounded">{error}</div>}
           <Field label="الاسم بالعربية *"><Input value={form.nameArabic} onChange={(e) => setForm({ ...form, nameArabic: e.target.value })} /></Field>
           <Field label="الاسم بالإنجليزية"><Input value={form.nameEnglish} onChange={(e) => setForm({ ...form, nameEnglish: e.target.value })} /></Field>
           <Field label="وصف مختصر"><Input value={form.shortDescription} onChange={(e) => setForm({ ...form, shortDescription: e.target.value })} /></Field>
@@ -146,7 +146,7 @@ export default function ProductsPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+      <label className="block text-xs font-medium text-muted mb-1">{label}</label>
       {children}
     </div>
   );

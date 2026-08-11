@@ -46,34 +46,34 @@ export default function ImportPage() {
 
   return (
     <div className="p-8 max-w-2xl">
-      <div className="bg-white border rounded-lg p-6 shadow-sm space-y-4">
-        <p className="text-sm text-gray-500">ارفع ملف Excel (.xlsx) أو CSV يحتوي على: الاسم، الجوال (إجباري)، الموقع (اختياري).</p>
+      <div className="bg-surface border rounded-lg p-6 shadow-sm space-y-4">
+        <p className="text-sm text-muted">ارفع ملف Excel (.xlsx) أو CSV يحتوي على: الاسم، الجوال (إجباري)، الموقع (اختياري).</p>
         <input type="file" accept=".xlsx,.csv" onChange={(e) => setFile(e.target.files?.[0] || null)}
-          className="block w-full text-sm text-gray-600 file:ml-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700" />
-        {error && <div className="bg-red-50 text-red-700 text-sm p-2 rounded">{error}</div>}
+          className="block w-full text-sm text-muted file:ml-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-surface-2 file:text-muted" />
+        {error && <div className="bg-danger-50 dark:bg-danger-600/10 text-danger-600 dark:text-danger-400 text-sm p-2 rounded">{error}</div>}
         <Button className="gap-2" onClick={doPreview} disabled={!file || loading}>
           <Upload className="w-4 h-4" /> {loading ? "جاري التحليل..." : "معاينة"}
         </Button>
       </div>
 
       {committed && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mt-4 flex items-center gap-3">
-          <CheckCircle className="w-6 h-6 text-green-600" />
-          <div className="text-sm text-green-800">
+        <div className="bg-qano-50 dark:bg-qano-900 border border-qano-200 dark:border-qano-800 rounded-lg p-4 mt-4 flex items-center gap-3">
+          <CheckCircle className="w-6 h-6 text-qano-600 dark:text-qano-400" />
+          <div className="text-sm text-qano-700 dark:text-qano-300">
             تم الاستيراد: أُضيف {committed.counts?.created ?? 0} عميلاً من أصل {committed.counts?.total ?? 0}.
           </div>
         </div>
       )}
 
       {preview && (
-        <div className="bg-white border rounded-lg p-6 shadow-sm mt-4">
-          <h3 className="font-bold text-gray-900 mb-3">المعاينة: {preview.filename}</h3>
+        <div className="bg-surface border rounded-lg p-6 shadow-sm mt-4">
+          <h3 className="font-bold text-content mb-3">المعاينة: {preview.filename}</h3>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center mb-4">
             <Stat label="الكل" value={c.total} />
-            <Stat label="صالح" value={c.valid} color="text-green-600" />
+            <Stat label="صالح" value={c.valid} color="text-qano-600 dark:text-qano-400" />
             <Stat label="غير صالح" value={c.invalid} />
             <Stat label="مكرر" value={c.duplicate} />
-            <Stat label="عدم تواصل" value={c.dnc} color="text-red-600" />
+            <Stat label="عدم تواصل" value={c.dnc} color="text-danger-600 dark:text-danger-400" />
             <Stat label="سبق التواصل" value={c.previouslyContacted} />
           </div>
           <Button onClick={commit} disabled={committing || c.valid === 0}>
@@ -87,9 +87,9 @@ export default function ImportPage() {
 
 function Stat({ label, value, color }: { label: string; value: number; color?: string }) {
   return (
-    <div className="p-2 bg-gray-50 rounded-lg">
-      <p className={`text-xl font-bold ${color || "text-gray-900"}`}>{value ?? 0}</p>
-      <p className="text-[11px] text-gray-500 mt-1">{label}</p>
+    <div className="p-2 bg-surface-2 rounded-lg">
+      <p className={`text-xl font-bold ${color || "text-content"}`}>{value ?? 0}</p>
+      <p className="text-[11px] text-muted mt-1">{label}</p>
     </div>
   );
 }

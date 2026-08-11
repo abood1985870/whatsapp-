@@ -63,42 +63,42 @@ export default function CampaignsPage() {
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-6">
-        <p className="text-sm text-gray-500">حملاتك التسويقية عبر واتساب</p>
+        <p className="text-sm text-muted">حملاتك التسويقية عبر واتساب</p>
         <Button className="gap-2" onClick={openCreate}><Plus className="w-4 h-4" /> حملة جديدة</Button>
       </div>
 
       {loading ? (
-        <div className="p-8 text-center text-gray-500">جاري التحميل...</div>
+        <div className="p-8 text-center text-muted">جاري التحميل...</div>
       ) : data.items.length === 0 ? (
-        <div className="bg-white border rounded-lg p-16 text-center text-gray-500 flex flex-col items-center">
-          <Send className="w-12 h-12 text-gray-300 mb-4" />
-          <p className="font-medium text-gray-900">لا توجد حملات</p>
+        <div className="bg-surface border rounded-lg p-16 text-center text-muted flex flex-col items-center">
+          <Send className="w-12 h-12 text-faint mb-4" />
+          <p className="font-medium text-content">لا توجد حملات</p>
           <p className="text-sm mt-1">أنشئ أول حملة بعد اكتشاف العملاء وإضافة برنامج.</p>
         </div>
       ) : (
-        <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-surface border rounded-lg shadow-sm overflow-hidden">
           <table className="w-full text-sm text-right">
-            <thead className="bg-gray-50 border-b">
+            <thead className="bg-surface-2 border-b">
               <tr>
-                <th className="px-6 py-3 font-medium text-gray-500">الحملة</th>
-                <th className="px-6 py-3 font-medium text-gray-500">البرنامج</th>
-                <th className="px-6 py-3 font-medium text-gray-500">الحالة</th>
-                <th className="px-6 py-3 font-medium text-gray-500">المستقبلون</th>
-                <th className="px-6 py-3 font-medium text-gray-500">أُرسلت</th>
-                <th className="px-6 py-3 font-medium text-gray-500">ردود</th>
+                <th className="px-6 py-3 font-medium text-muted">الحملة</th>
+                <th className="px-6 py-3 font-medium text-muted">البرنامج</th>
+                <th className="px-6 py-3 font-medium text-muted">الحالة</th>
+                <th className="px-6 py-3 font-medium text-muted">المستقبلون</th>
+                <th className="px-6 py-3 font-medium text-muted">أُرسلت</th>
+                <th className="px-6 py-3 font-medium text-muted">ردود</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {data.items.map((c: any) => (
-                <tr key={c.id} className="hover:bg-gray-50/50 cursor-pointer" onClick={() => router.push(`/app/marketing/campaigns/${c.id}`)}>
+                <tr key={c.id} className="hover:bg-surface-2 cursor-pointer" onClick={() => router.push(`/app/marketing/campaigns/${c.id}`)}>
                   <td className="px-6 py-3 font-medium">
-                    <Link href={`/app/marketing/campaigns/${c.id}`} className="hover:text-gold-600">{c.name}</Link>
+                    <Link href={`/app/marketing/campaigns/${c.id}`} className="hover:text-brand">{c.name}</Link>
                   </td>
-                  <td className="px-6 py-3 text-gray-500">{c.product?.nameArabic || "—"}</td>
+                  <td className="px-6 py-3 text-muted">{c.product?.nameArabic || "—"}</td>
                   <td className="px-6 py-3"><StatusBadge status={c.status} /></td>
-                  <td className="px-6 py-3 text-gray-600">{c.totalRecipients}</td>
-                  <td className="px-6 py-3 text-gray-600">{c.sentCount}</td>
-                  <td className="px-6 py-3 text-gray-600">{c.repliedCount}</td>
+                  <td className="px-6 py-3 text-muted">{c.totalRecipients}</td>
+                  <td className="px-6 py-3 text-muted">{c.sentCount}</td>
+                  <td className="px-6 py-3 text-muted">{c.repliedCount}</td>
                 </tr>
               ))}
             </tbody>
@@ -108,23 +108,23 @@ export default function CampaignsPage() {
 
       <Modal isOpen={open} onClose={() => setOpen(false)} title="حملة جديدة">
         <div className="space-y-3">
-          {error && <div className="bg-red-50 text-red-700 text-sm p-2 rounded">{error}</div>}
+          {error && <div className="bg-danger-50 dark:bg-danger-600/10 text-danger-600 dark:text-danger-400 text-sm p-2 rounded">{error}</div>}
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">اسم الحملة *</label>
+            <label className="block text-xs font-medium text-muted mb-1">اسم الحملة *</label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">البرنامج *</label>
+            <label className="block text-xs font-medium text-muted mb-1">البرنامج *</label>
             <select className="w-full border rounded-lg p-2.5 text-sm" value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })}>
               <option value="">اختر البرنامج</option>
               {products.map((p) => <option key={p.id} value={p.id}>{p.nameArabic}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">سياق بيعي (اختياري)</label>
+            <label className="block text-xs font-medium text-muted mb-1">سياق بيعي (اختياري)</label>
             <textarea className="w-full border rounded-lg p-2 text-sm h-20" value={form.salesContext} onChange={(e) => setForm({ ...form, salesContext: e.target.value })} />
           </div>
-          <p className="text-xs text-gray-500">سيتم إدراج العملاء المحتملين بحالة (مكتشف): {leadCount} عميل. تمر جميعهم بفحص الأهلية وعدم التواصل.</p>
+          <p className="text-xs text-muted">سيتم إدراج العملاء المحتملين بحالة (مكتشف): {leadCount} عميل. تمر جميعهم بفحص الأهلية وعدم التواصل.</p>
         </div>
         <div className="flex gap-2 justify-end mt-4 pt-4 border-t">
           <Button variant="outline" onClick={() => setOpen(false)}>إلغاء</Button>
