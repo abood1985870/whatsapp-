@@ -1,10 +1,12 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import api from "@/lib/api";
 import {
   Inbox, Users, BookOpen, Bot, BarChart3, MessageCircle,
-  Settings, LogOut, ChevronLeft, ShieldCheck
+  Settings, LogOut, ChevronLeft, ShieldCheck, Megaphone
 } from "lucide-react";
 
 const navItems = [
@@ -27,9 +29,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const platformOwner = isPlatformOwner(user);
-  const items = platformOwner
-    ? [{ href: "/app/platform", label: "مالك المنصة", icon: ShieldCheck }, ...navItems]
-    : navItems;
+  const orgId = user?.memberships?.[0]?.organizationId;
+  const [marketingEnabled, setMarketingEnabled] = useState(false);
+
+  // Server decides entitlement; UI visibility is convenience only.
+  useEffect(() => {
+    if (!orgId) return;
+    let active = true;
+    api
+      .get(`/marketing/entitlements?organizationId=${orgId}`)
+      .then((res) => { if (active) setMarketingEnabled(res.data?.data?.enabled === true); })
+      .catch(() => { if (active) setMarketingEnabled(false); });
+    return () => { active = false; };
+  }, [orgId]);
+
+  const items = [
+    ...(platformOwner ? [{ href: "/app/platform", label: "مالك المنصة", icon: ShieldCheck }] : []),
+    ...navItems,
+    ...(marketingEnabled ? [{ href: "/app/marketing", label: "التسويق والمبيعات", icon: Megaphone }] : []),
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 flex" dir="rtl">

@@ -34,3 +34,7 @@ Date: 2026-08-11
 | `pnpm --filter @qanoai/api test` | 1 | **zero test files exist** (`testRegex .*\.spec\.ts$` → 0 matches in 126 files). Exit 1 is "No tests found", not failing tests. | PRE_EXISTING_FAILURE — repo has no automated tests at all; new module introduces the first real test suite |
 
 Note: migrations are hand-written additive SQL files under `prisma/migrations/<timestamp>_<name>/migration.sql` (no shadow-db generation). New module must follow the same additive pattern.
+
+Additional environmental tooling limits on this Windows machine (not code defects):
+- `turbo` binary crashes (missing DLL) — use `pnpm --filter` per package.
+- `next build` for `@qanoai/web` compiles and type-checks cleanly ("✓ Compiled successfully") but fails at the very end on `EPERM: symlink` while writing the `output: 'standalone'` directory (Windows symlink permission). Verified via `tsc --noEmit` (exit 0) which is the authoritative type gate. On Railway/Linux the standalone copy succeeds.
