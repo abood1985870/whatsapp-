@@ -2,11 +2,12 @@ import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
 
 /**
- * Idempotent server-side bootstrap for the AI Sales & Marketing module.
+ * Idempotent server-side bootstrap for the add-on modules (AI Sales &
+ * Marketing, AI Voice Employee).
  *
  * Grants the platform owner (PLATFORM_OWNER_EMAIL env var) the
- * PLATFORM_SUPER_ADMIN role in their organizations and enables the
- * marketing feature entitlements for those organizations.
+ * PLATFORM_SUPER_ADMIN role in their organizations and enables the module
+ * feature entitlements for those organizations.
  *
  * Safe to run repeatedly: every write is an upsert/conditional and every
  * actual change is recorded in the audit log. Exits 0 without changes when
@@ -15,7 +16,8 @@ import { randomUUID } from "crypto";
 
 const prisma = new PrismaClient();
 
-const MARKETING_CAPABILITIES = [
+const MODULE_CAPABILITIES = [
+  // AI Sales & Marketing
   "AI_SALES_MODULE",
   "PRODUCT_CATALOG",
   "LEAD_DISCOVERY",
@@ -26,6 +28,18 @@ const MARKETING_CAPABILITIES = [
   "DO_NOT_CONTACT",
   "SALES_ANALYTICS",
   "SALES_SETTINGS",
+  // AI Voice Employee
+  "AI_VOICE_MODULE",
+  "VOICE_AGENT_MANAGEMENT",
+  "VOICE_NUMBERS",
+  "VOICE_TOOLS",
+  "VOICE_KNOWLEDGE",
+  "VOICE_ANALYTICS",
+  "VOICE_RECORDINGS",
+  "VOICE_VERIFICATION",
+  "VOICE_USAGE",
+  "VOICE_SETTINGS",
+  "VOICE_DIAGNOSTICS",
 ];
 
 async function main() {
@@ -47,7 +61,7 @@ async function main() {
     return;
   }
 
-  // 0. Ensure marketing permission definitions exist (without running the full demo seed).
+  // 0. Ensure module permission definitions exist (without running the full demo seed).
   const marketingPermissions = [
     { code: "marketing.read", name: "قراءة التسويق", category: "marketing" },
     { code: "marketing.products.manage", name: "إدارة البرامج", category: "marketing" },
@@ -57,6 +71,14 @@ async function main() {
     { code: "marketing.dnc.manage", name: "إدارة قائمة عدم التواصل", category: "marketing" },
     { code: "marketing.settings.manage", name: "إدارة إعدادات التسويق", category: "marketing" },
     { code: "marketing.analytics.read", name: "قراءة تحليلات التسويق", category: "marketing" },
+    { code: "voice.read", name: "قراءة الموظف الصوتي", category: "voice" },
+    { code: "voice.agent.manage", name: "إدارة الموظف الصوتي", category: "voice" },
+    { code: "voice.numbers.manage", name: "إدارة أرقام الاتصال", category: "voice" },
+    { code: "voice.settings.manage", name: "إدارة إعدادات الصوت", category: "voice" },
+    { code: "voice.calls.read", name: "قراءة المكالمات", category: "voice" },
+    { code: "voice.recordings.access", name: "الوصول للتسجيلات", category: "voice" },
+    { code: "voice.analytics.read", name: "قراءة تحليلات المكالمات", category: "voice" },
+    { code: "voice.diagnostics.run", name: "تشغيل التشخيص الصوتي", category: "voice" },
   ];
   for (const perm of marketingPermissions) {
     const existing = await prisma.permission.findUnique({ where: { code: perm.code } });
@@ -79,7 +101,7 @@ async function main() {
         data: marketingPermRows.map((p) => ({ roleId: ownerRole.id, permissionId: p.id })),
         skipDuplicates: true,
       });
-      changes.push(`granted marketing permissions to ORGANIZATION_OWNER`);
+      changes.push(`granted module permissions to ORGANIZATION_OWNER`);
     }
   }
 
@@ -118,7 +140,7 @@ async function main() {
 
   // 3. Enable marketing entitlements for each of the owner's organizations.
   for (const membership of activeMemberships) {
-    for (const featureKey of MARKETING_CAPABILITIES) {
+    for (const featureKey of MODULE_CAPABILITIES) {
       const existing = await prisma.entitlement.findUnique({
         where: { organizationId_featureKey: { organizationId: membership.organizationId, featureKey } },
       });
@@ -139,7 +161,7 @@ async function main() {
     await prisma.auditLog.create({
       data: {
         actorType: "SYSTEM",
-        action: "MARKETING_MODULE_BOOTSTRAP",
+        action: "MODULE_ENTITLEMENT_BOOTSTRAP",
         resourceType: "Entitlement",
         metadata: { ownerEmail, changes },
         correlationId,

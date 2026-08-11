@@ -55,6 +55,17 @@ const envSchema = z.object({
   N8N_WEBHOOK_BASE_URL: z.string().optional(),
   PLATFORM_OWNER_EMAIL: z.string().email().optional(),
   GOOGLE_PLACES_API_KEY: z.string().optional(),
+  // AI Voice Employee. Absent values keep the module in Simulation mode;
+  // nothing here is ever defaulted to a fake credential.
+  VOICE_PROVIDER: z.enum(["SIMULATION", "TWILIO"]).default("SIMULATION"),
+  VOICE_PUBLIC_BASE_URL: z.string().url().optional(),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  VOICE_REALTIME_MODEL: z.string().default("gpt-realtime"),
+  VOICE_REALTIME_URL: z.string().default("wss://api.openai.com/v1/realtime"),
+  VOICE_STREAM_TOKEN_SECRET: z.string().optional(),
+  VOICE_TELEPHONY_COST_PER_MINUTE_MINOR: z.coerce.number().default(0),
+  VOICE_AI_COST_PER_MINUTE_MINOR: z.coerce.number().default(0),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -46,6 +46,14 @@ export const PERMISSIONS = {
   MARKETING_DNC_MANAGE: "marketing.dnc.manage",
   MARKETING_SETTINGS_MANAGE: "marketing.settings.manage",
   MARKETING_ANALYTICS_READ: "marketing.analytics.read",
+  VOICE_READ: "voice.read",
+  VOICE_AGENT_MANAGE: "voice.agent.manage",
+  VOICE_NUMBERS_MANAGE: "voice.numbers.manage",
+  VOICE_SETTINGS_MANAGE: "voice.settings.manage",
+  VOICE_CALLS_READ: "voice.calls.read",
+  VOICE_RECORDINGS_ACCESS: "voice.recordings.access",
+  VOICE_ANALYTICS_READ: "voice.analytics.read",
+  VOICE_DIAGNOSTICS_RUN: "voice.diagnostics.run",
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -67,6 +75,25 @@ export const MARKETING_CAPABILITIES = {
 } as const;
 
 export type MarketingCapability = (typeof MARKETING_CAPABILITIES)[keyof typeof MARKETING_CAPABILITIES];
+
+// Feature-entitlement keys for the AI Voice Employee module.
+// AI_VOICE_MODULE is the master switch checked by the API guard; the rest
+// gate sub-features so an organization can hold a partial voice plan.
+export const VOICE_CAPABILITIES = {
+  AI_VOICE_MODULE: "AI_VOICE_MODULE",
+  VOICE_AGENT_MANAGEMENT: "VOICE_AGENT_MANAGEMENT",
+  VOICE_NUMBERS: "VOICE_NUMBERS",
+  VOICE_TOOLS: "VOICE_TOOLS",
+  VOICE_KNOWLEDGE: "VOICE_KNOWLEDGE",
+  VOICE_ANALYTICS: "VOICE_ANALYTICS",
+  VOICE_RECORDINGS: "VOICE_RECORDINGS",
+  VOICE_VERIFICATION: "VOICE_VERIFICATION",
+  VOICE_USAGE: "VOICE_USAGE",
+  VOICE_SETTINGS: "VOICE_SETTINGS",
+  VOICE_DIAGNOSTICS: "VOICE_DIAGNOSTICS",
+} as const;
+
+export type VoiceCapability = (typeof VOICE_CAPABILITIES)[keyof typeof VOICE_CAPABILITIES];
 
 export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
   PLATFORM_SUPER_ADMIN: Object.values(PERMISSIONS),

@@ -2030,6 +2030,331 @@ model HotLeadAlert {
   @@map("hot_lead_alerts")
 }
 
+// ============================================
+// AI Voice Employee (الموظف الصوتي)
+// New module. Links to existing models (Contact, Lead, SalesProduct,
+// Campaign, Conversation) are scalar IDs so no existing model changes.
+// Money is integer minor units; estimated and actual costs stay separate.
+// ============================================
+
+model VoiceAgent {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  name               String
+  employeeName       String    @default("سعود")
+  role               String    @default("SALES")
+  status             String    @default("DRAFT")
+  primaryLanguage    String    @default("ar")
+  secondaryLanguages String[]  @default(["en"])
+  voiceId            String    @default("alloy")
+  voicePersona       String?
+  speakingSpeed      Float     @default(1.0)
+  tone               String    @default("PROFESSIONAL")
+  formality          String    @default("BALANCED")
+  saudiDialect       Boolean   @default(true)
+  greetingMessage    String?
+  closingMessage     String?
+  salesStyle         String    @default("BALANCED")
+  knowledgeBaseId    String?
+  allowedTools       String[]  @default([])
+  verificationLevel  String    @default("NO_VERIFICATION")
+  recordingEnabled   Boolean   @default(false)
+  whatsappFollowup   Boolean   @default(true)
+  maxCallSeconds     Int       @default(900)
+  promptVersion      String    @default("1.0.0")
+  activeVersion      Int       @default(1)
+  createdById        String
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  versions           VoiceAgentVersion[]
+  calls              Call[]
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("voice_agents")
+}
+
+model VoiceAgentVersion {
+  id            String   @id @default(cuid())
+  agentId       String
+  version       Int
+  configuration Json
+  promptVersion String
+  changeReason  String?
+  createdById   String
+  createdAt     DateTime @default(now())
+
+  agent         VoiceAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, version])
+  @@index([agentId])
+  @@map("voice_agent_versions")
+}
+
+model VoiceNumber {
+  id                 String    @id @default(cuid())
+  organizationId     String
+  voiceAgentId       String?
+  phoneNumber        String
+  normalizedPhone    String
+  countryCode        String    @default("SA")
+  provider           String
+  providerNumberId   String?
+  connectionType     String    @default("EXISTING_FORWARDING")
+  status             String    @default("NOT_CONFIGURED")
+  capabilities       String[]  @default([])
+  lastVerifiedAt     DateTime?
+  lastInboundAt      DateTime?
+  monthlyCostMinor   Int?
+  setupNotes         String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  @@unique([organizationId, normalizedPhone])
+  @@index([organizationId])
+  @@index([status])
+  @@map("voice_numbers")
+}
+
+model VoiceProviderConfig {
+  id             String    @id @default(cuid())
+  organizationId String
+  provider       String
+  status         String    @default("CONFIGURATION_REQUIRED")
+  capabilities   String[]  @default([])
+  settings       Json      @default("{}")
+  lastCheckedAt  DateTime?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([organizationId, provider])
+  @@index([organizationId])
+  @@map("voice_provider_configs")
+}
+
+model Call {
+  id                  String    @id @default(cuid())
+  organizationId      String
+  provider            String
+  providerCallId      String?
+  direction           String    @default("INBOUND")
+  voiceAgentId        String?
+  voiceAgentVersion   Int?
+  promptVersion       String?
+  voiceNumberId       String?
+  contactId           String?
+  leadId              String?
+  productId           String?
+  campaignId          String?
+  fromNumber          String
+  toNumber            String
+  normalizedFromPhone String
+  language            String    @default("ar")
+  status              String    @default("RINGING")
+  endReason           String?
+  errorCategory       String?
+  errorMessage        String?
+  startedAt           DateTime  @default(now())
+  answeredAt          DateTime?
+  endedAt             DateTime?
+  durationSeconds     Int       @default(0)
+  summary             String?
+  structuredSummary   Json?
+  salesOutcome        String?
+  supportRequired     Boolean   @default(false)
+  recordingEnabled    Boolean   @default(false)
+  recordingStorageKey String?
+  qualityScore        Float?
+  estimatedCostMinor  Int       @default(0)
+  actualCostMinor     Int?
+  isSimulation        Boolean   @default(false)
+  correlationId       String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  agent               VoiceAgent? @relation(fields: [voiceAgentId], references: [id])
+  events              CallEvent[]
+  transcriptTurns     CallTranscriptTurn[]
+  toolExecutions      CallToolExecution[]
+
+  @@unique([provider, providerCallId])
+  @@index([organizationId])
+  @@index([status])
+  @@index([contactId])
+  @@index([leadId])
+  @@index([startedAt])
+  @@index([normalizedFromPhone])
+  @@map("calls")
+}
+
+model CallEvent {
+  id              String   @id @default(cuid())
+  callId          String
+  eventType       String
+  fromStatus      String?
+  toStatus        String?
+  providerEventId String?
+  idempotencyKey  String?  @unique
+  metadata        Json?
+  createdAt       DateTime @default(now())
+
+  call            Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+  @@index([createdAt])
+  @@map("call_events")
+}
+
+model CallTranscriptTurn {
+  id            String   @id @default(cuid())
+  callId        String
+  turnIndex     Int
+  speaker       String
+  text          String
+  redactedText  String?
+  containsPii   Boolean  @default(false)
+  confidence    Float?
+  startOffsetMs Int?
+  createdAt     DateTime @default(now())
+
+  call          Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, turnIndex])
+  @@index([callId])
+  @@map("call_transcript_turns")
+}
+
+model CallToolExecution {
+  id             String    @id @default(cuid())
+  callId         String
+  toolId         String
+  status         String    @default("PENDING")
+  denyReason     String?
+  input          Json?
+  output         Json?
+  idempotencyKey String?
+  durationMs     Int?
+  errorMessage   String?
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  call           Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@unique([callId, idempotencyKey])
+  @@index([callId])
+  @@index([status])
+  @@map("call_tool_executions")
+}
+
+model VoiceUsageRecord {
+  id                   String   @id @default(cuid())
+  organizationId       String
+  callId               String?
+  periodKey            String
+  telephonySeconds     Int      @default(0)
+  aiAudioSeconds       Int      @default(0)
+  aiInputTokens        Int      @default(0)
+  aiOutputTokens       Int      @default(0)
+  toolCallCount        Int      @default(0)
+  followupCount        Int      @default(0)
+  estimatedCostMinor   Int      @default(0)
+  actualCostMinor      Int?
+  createdAt            DateTime @default(now())
+
+  @@index([organizationId, periodKey])
+  @@index([callId])
+  @@map("voice_usage_records")
+}
+
+model VerificationSession {
+  id             String    @id @default(cuid())
+  organizationId String
+  callId         String?
+  contactId      String?
+  scope          String
+  level          String
+  codeHash       String?
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(3)
+  verifiedAt     DateTime?
+  expiresAt      DateTime
+  consumedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([organizationId])
+  @@index([callId])
+  @@index([expiresAt])
+  @@map("verification_sessions")
+}
+
+model VoiceSettings {
+  id                       String   @id @default(cuid())
+  organizationId           String   @unique
+  killSwitchEnabled        Boolean  @default(false)
+  recordingEnabled         Boolean  @default(false)
+  toolsEnabled             Boolean  @default(true)
+  whatsappFollowupEnabled  Boolean  @default(true)
+  otpEnabled               Boolean  @default(false)
+  numberProvisioningEnabled Boolean @default(false)
+  releaseStage             String   @default("TEST")
+  maxConcurrentCalls       Int      @default(5)
+  maxCallSeconds           Int      @default(900)
+  silenceWarningSeconds    Int      @default(8)
+  silenceEndSeconds        Int      @default(25)
+  maxRepeatedFailures      Int      @default(3)
+  dailyBudgetMinor         Int?
+  monthlyBudgetMinor       Int?
+  transcriptRetentionDays  Int?
+  recordingRetentionDays   Int?
+  ownerAlertPhone          String?
+  testPhoneNumber          String?
+  businessHoursNote        String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@map("voice_settings")
+}
+
+model VoiceEvaluationRun {
+  id             String    @id @default(cuid())
+  organizationId String
+  voiceAgentId   String?
+  promptVersion  String
+  scenarioSetId  String
+  status         String    @default("RUNNING")
+  totalScenarios Int       @default(0)
+  passedCount    Int       @default(0)
+  failedCount    Int       @default(0)
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  results        VoiceEvaluationResult[]
+
+  @@index([organizationId])
+  @@map("voice_evaluation_runs")
+}
+
+model VoiceEvaluationResult {
+  id          String   @id @default(cuid())
+  runId       String
+  scenarioId  String
+  passed      Boolean
+  score       Float?
+  expected    Json?
+  actual      Json?
+  violations  String[] @default([])
+  createdAt   DateTime @default(now())
+
+  run         VoiceEvaluationRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@map("voice_evaluation_results")
+}
+
 model SupportAccessGrant {
   id             String   @id @default(cuid())
   organizationId String
