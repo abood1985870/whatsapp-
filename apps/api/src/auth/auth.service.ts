@@ -200,13 +200,16 @@ export class AuthService {
     const jti = uuidv4();
     const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
 
+    // strictUndefinedChecks rejects an explicit `undefined` value for a field —
+    // it must be omitted, not set to undefined, when there is no ip/userAgent
+    // (register() calls issueSession with no context at all).
     await prisma.session.create({
       data: {
         userId: user.id,
         token: jti,
         expiresAt,
-        ipAddress: context?.ip,
-        userAgent: context?.userAgent?.slice(0, 500),
+        ...(context?.ip ? { ipAddress: context.ip } : {}),
+        ...(context?.userAgent ? { userAgent: context.userAgent.slice(0, 500) } : {}),
       },
     });
 
@@ -237,8 +240,8 @@ export class AuthService {
           action: `AUTH_LOGIN_FAILED_${kind}`,
           resourceType: "User",
           resourceId: userId,
-          ipHash: context?.ip ? this.hashIp(context.ip) : undefined,
-          userAgent: context?.userAgent?.slice(0, 500),
+          ...(context?.ip ? { ipHash: this.hashIp(context.ip) } : {}),
+          ...(context?.userAgent ? { userAgent: context.userAgent.slice(0, 500) } : {}),
           correlationId: generateCorrelationId(),
         },
       })
