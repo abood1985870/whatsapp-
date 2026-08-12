@@ -8,7 +8,7 @@ import { cn } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   Inbox, Users, BookOpen, Bot, BarChart3, MessageCircle,
-  Settings, LogOut, ShieldCheck, Megaphone, PhoneCall, Menu, X
+  Settings, LogOut, ShieldCheck, Megaphone, PhoneCall, Menu, X, CreditCard, ClipboardList, Tag
 } from "lucide-react";
 
 /**
@@ -84,12 +84,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       items: [
         ...(marketingEnabled ? [{ href: "/app/marketing", label: "التسويق والمبيعات", icon: Megaphone }] : []),
         { href: "/app/analytics", label: "التحليلات", icon: BarChart3 },
+        { href: "/app/subscription", label: "اشتراكي", icon: CreditCard },
       ],
     },
   ];
 
   const footerItems: NavItem[] = [
-    ...(platformOwner ? [{ href: "/app/platform", label: "مالك المنصة", icon: ShieldCheck }] : []),
+    ...(platformOwner
+      ? [
+          { href: "/app/platform", label: "مالك المنصة", icon: ShieldCheck },
+          { href: "/app/subscriptions", label: "طلبات الاشتراك", icon: ClipboardList },
+          { href: "/app/plans", label: "الباقات", icon: Tag },
+        ]
+      : []),
     { href: "/app/settings", label: "الإعدادات", icon: Settings },
   ];
 

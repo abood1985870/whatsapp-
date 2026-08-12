@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bot, Hand, UserRound, PhoneCall, MessageCircle, BookOpen, Megaphone,
   BarChart3, ShieldCheck, ArrowLeft, Check, QrCode, Sparkles, Menu, X,
 } from "lucide-react";
 import { cn } from "@/components/ui/button";
+import api from "@/lib/api";
 
 /**
  * صفحة الهبوط.
@@ -26,10 +27,19 @@ const DUTY_ROWS = [
 
 export default function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [plans, setPlans] = useState<any[] | null>(null);
+
+  useEffect(() => {
+    api
+      .get("/plans")
+      .then((res) => setPlans(res.data?.data || []))
+      .catch(() => setPlans([]));
+  }, []);
 
   const links = [
     { href: "#idea", label: "الفكرة" },
     { href: "#employees", label: "الموظفون" },
+    { href: "#pricing", label: "الباقات" },
     { href: "#how", label: "كيف يشتغل" },
     { href: "#control", label: "التحكّم" },
   ];
@@ -320,6 +330,83 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* ===== الباقات ===== */}
+      <section id="pricing" className="max-w-6xl mx-auto px-5 py-20 lg:py-24">
+        <div className="max-w-2xl mx-auto text-center">
+          <p className="eyebrow mb-3">الأسعار</p>
+          <h2 className="text-[30px] lg:text-[36px] font-bold leading-tight text-content tracking-tight">
+            اختر الباقة المناسبة لأعمالك
+          </h2>
+          <p className="mt-4 text-[17px] text-muted leading-relaxed">
+            سعر واضح من أول يوم — تشوف الباقات قبل ما تسجّل، وتقدر تبدأ فوراً.
+          </p>
+        </div>
+
+        {plans === null ? (
+          <p className="mt-12 text-center text-label text-muted">جارٍ تحميل الباقات…</p>
+        ) : plans.length === 0 ? (
+          <p className="mt-12 text-center text-label text-muted">الباقات غير متاحة حالياً.</p>
+        ) : (
+          <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-5 lg:gap-6 items-start">
+            {plans.map((plan) => {
+              const featured = !!plan.badge;
+              return (
+                <div
+                  key={plan.id}
+                  className={cn(
+                    "relative rounded-lg border p-6 lg:p-7 flex flex-col min-w-0",
+                    featured
+                      ? "border-qano-500 bg-surface shadow-pop lg:-mt-3 lg:mb-3 lg:pt-9"
+                      : "border-line bg-surface"
+                  )}
+                >
+                  {featured && (
+                    <span className="absolute -top-3 start-1/2 -translate-x-1/2 rounded-full bg-qano-500 text-white text-micro font-semibold px-3 py-1 whitespace-nowrap">
+                      {plan.badge}
+                    </span>
+                  )}
+
+                  <h3 className="text-[19px] font-bold text-content">{plan.name}</h3>
+                  {plan.tagline && <p className="mt-1 text-label text-muted leading-relaxed">{plan.tagline}</p>}
+
+                  <div className="mt-5 flex items-baseline gap-1.5">
+                    <span className="text-[32px] font-bold text-content num">
+                      {(plan.priceAmount / 100).toLocaleString("ar-SA")}
+                    </span>
+                    <span className="text-label text-muted">ريال / شهرياً</span>
+                  </div>
+
+                  {plan.messagesIncluded != null && (
+                    <p className="mt-1 text-micro text-faint num">{plan.messagesIncluded.toLocaleString("ar-SA")} رسالة شهرياً</p>
+                  )}
+
+                  <Link
+                    href={`/subscribe?plan=${plan.id}`}
+                    className={cn(
+                      "mt-6 inline-flex h-11 items-center justify-center rounded font-semibold transition-colors",
+                      featured
+                        ? "bg-qano-500 text-white hover:bg-qano-400"
+                        : "border border-line-strong text-content hover:bg-surface-2"
+                    )}
+                  >
+                    اطلب الاشتراك
+                  </Link>
+
+                  <ul className="mt-6 space-y-2.5 pt-6 border-t border-line">
+                    {plan.features.map((f: string) => (
+                      <li key={f} className="flex items-start gap-2 text-label text-muted">
+                        <Check className="w-4 h-4 text-qano-600 dark:text-qano-400 shrink-0 mt-0.5" />
+                        <span className="min-w-0">{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* ===== كيف يشتغل ===== */}

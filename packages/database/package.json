@@ -11,6 +11,7 @@
     "db:deploy": "prisma migrate deploy --schema=../../prisma/schema.prisma",
     "db:seed": "tsx src/seed.ts",
     "db:bootstrap-marketing": "tsx src/bootstrap-marketing.ts",
+    "db:bootstrap-plans": "tsx src/bootstrap-plans.ts",
     "db:reset": "prisma migrate reset --force --schema=../../prisma/schema.prisma",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",

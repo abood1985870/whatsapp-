@@ -154,6 +154,7 @@ model Organization {
   aiAgents        AiAgent[]
   knowledgeBases  KnowledgeBase[]
   subscriptions   Subscription[]
+  subscriptionRequests SubscriptionRequest[]
   apiKeys         ApiKey[]
   webhookEndpoints OutboundWebhookEndpoint[]
   auditLogs       AuditLog[]
@@ -1295,6 +1296,9 @@ model Plan {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
+  tagline     String?
+  badge       String?
+  sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)
   isPublic    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -1303,6 +1307,7 @@ model Plan {
   prices      PlanPrice[]
   features    PlanFeature[]
   subscriptions Subscription[]
+  requests    SubscriptionRequest[]
 
   @@map("plans")
 }
@@ -1345,6 +1350,12 @@ model Subscription {
   currentPeriodEnd  DateTime
   cancelAtPeriodEnd Boolean  @default(false)
   canceledAt        DateTime?
+  planSnapshot      Json?
+  activationSource  String   @default("MANUAL_APPROVAL")
+  paymentStatus     String?
+  paymentProvider   String?
+  paymentReference  String?
+  paidAt            DateTime?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -1354,10 +1365,76 @@ model Subscription {
   invoices          Invoice[]
   payments          Payment[]
   credits           Credit[]
+  request           SubscriptionRequest?
 
   @@index([organizationId])
   @@index([status])
   @@map("subscriptions")
+}
+
+/// A customer's ask for a plan, sitting between "picked a plan" and
+/// "has an active Subscription". Manual-approval today (`activationSource`
+/// on the Subscription it produces is always MANUAL_APPROVAL) but the shape
+/// is provider-agnostic: nothing here assumes who or what moves PENDING
+/// forward, so a future payment webhook can approve a request the same way
+/// `SubscriptionsAdminService.approve()` does today.
+model SubscriptionRequest {
+  id                String    @id @default(cuid())
+  organizationId    String
+  planId            String
+  requestedByUserId String
+  status            String    @default("PENDING") // PENDING | APPROVED | REJECTED | CANCELLED
+
+  // Frozen at request time so a later Plan price/feature edit never rewrites
+  // history for a request that already went through.
+  planSnapshot      Json
+  priceAtRequest    Int
+  currency          String    @default("SAR")
+
+  contactName       String
+  contactCompany    String?
+  contactEmail      String
+  contactPhone      String?
+  notes             String?
+
+  rejectionReason   String?
+  approvedByUserId  String?
+  approvedAt        DateTime?
+
+  subscriptionId    String?   @unique
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan              Plan          @relation(fields: [planId], references: [id])
+  subscription      Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([organizationId])
+  @@index([status])
+  @@map("subscription_requests")
+}
+
+/// Owner-editable inputs for the margin/loss warnings shown on Plans
+/// Management. One row per currency; MVP ships a single SAR row. `Float` (not
+/// Int minor units) because these are cost-modeling inputs the owner tunes by
+/// hand, not amounts that flow through payment processing.
+model PricingCostConfig {
+  id                       String   @id @default(cuid())
+  currency                 String   @unique @default("SAR")
+  whatsappCostPerMessage   Float    @default(0)
+  aiCostPerMessage         Float    @default(0)
+  infrastructureCost       Float    @default(0)
+  databaseCost             Float    @default(0)
+  storageCost              Float    @default(0)
+  providerCost             Float    @default(0)
+  supportCost              Float    @default(0)
+  otherVariableCost        Float    @default(0)
+  safetyBufferPercent      Float    @default(10)
+  targetGrossMarginPercent Float    @default(65)
+  updatedAt                DateTime @updatedAt
+  updatedByUserId          String?
+
+  @@map("pricing_cost_configs")
 }
 
 model SubscriptionItem {

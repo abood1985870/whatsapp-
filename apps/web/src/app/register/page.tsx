@@ -27,7 +27,8 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(form);
-      window.location.href = "/app/inbox";
+      const planId = new URLSearchParams(window.location.search).get("plan");
+      window.location.href = planId ? `/subscribe?plan=${planId}` : "/app/inbox";
     } catch (err: any) {
       setError(err.response?.data?.error?.message || "تعذّر إنشاء الحساب. جرّب مرة ثانية.");
     } finally {

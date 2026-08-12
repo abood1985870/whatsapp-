@@ -31,7 +31,8 @@ export default function LoginPage() {
       (membership: any) =>
         membership.status === "ACTIVE" && membership.role?.name === "PLATFORM_SUPER_ADMIN"
     );
-    window.location.href = isPlatformOwner ? "/app/platform" : "/app/inbox";
+    const planId = new URLSearchParams(window.location.search).get("plan");
+    window.location.href = isPlatformOwner ? "/app/platform" : planId ? `/subscribe?plan=${planId}` : "/app/inbox";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

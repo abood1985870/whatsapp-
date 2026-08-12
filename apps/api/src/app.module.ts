@@ -20,6 +20,7 @@ import { PlatformModule } from "./platform/platform.module";
 import { MarketingModule } from "./marketing/marketing.module";
 import { VoiceModule } from "./voice/voice.module";
 import { PrivacyModule } from "./privacy/privacy.module";
+import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { PrivacyModule } from "./privacy/privacy.module";
     MarketingModule,
     VoiceModule,
     PrivacyModule,
+    SubscriptionsModule,
   ],
 })
 export class AppModule {}
