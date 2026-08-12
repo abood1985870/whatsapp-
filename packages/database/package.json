@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "db:sync-permissions": "tsx src/sync-permissions.cli.ts",
     "db:apply-2fa-column": "tsx src/apply-2fa-column.ts",
-    "db:apply-outbound-safety": "tsx src/apply-outbound-safety.ts"
+    "db:apply-outbound-safety": "tsx src/apply-outbound-safety.ts",
+    "db:apply-pending-migrations": "tsx src/apply-pending-migrations.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
