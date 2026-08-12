@@ -411,10 +411,6 @@ importers:
         version: 5.9.3
 
   packages/permissions:
-    dependencies:
-      '@qanoai/database':
-        specifier: workspace:*
-        version: link:../database
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
