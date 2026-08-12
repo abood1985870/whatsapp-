@@ -2,7 +2,194 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   QanoAI — لوحة المناوبة (the duty board)
+   ------------------------------------------------------------
+   One rule governs colour in this product:
+
+     A HUE MEANS THE MACHINE IS INVOLVED.
+     Work a human is doing carries no hue at all.
+
+   - qano (teal)  = Qano is handling it. Also the brand colour,
+                    because the brand *is* the AI employee.
+   - alert (amber) = a human is needed. Used for nothing else.
+   - everything else is cool ink.
+
+   Consequence: an agent scans a list by colour alone and sees
+   only the rows that are not under human control.
+   ============================================================ */
+
 @layer base {
-  body { @apply bg-gray-50 text-gray-900 antialiased; }
-  [dir="rtl"] { font-family: "Inter", "Noto Sans Arabic", system-ui, sans-serif; }
+  :root {
+    /* --- qano teal · brand + "the machine has this" --- */
+    --qano-50:  232 245 243;
+    --qano-100: 201 233 228;
+    --qano-200: 152 214 205;
+    --qano-300: 95 191 178;
+    --qano-400: 51 165 151;
+    --qano-500: 18 137 123;
+    --qano-600: 14 124 110;
+    --qano-700: 10 96 85;
+    --qano-800: 8 75 67;
+    --qano-900: 6 58 52;
+
+    /* --- signal amber · "a human is needed", nothing else --- */
+    --alert-50:  253 244 229;
+    --alert-100: 250 229 194;
+    --alert-300: 243 190 94;
+    --alert-400: 245 165 36;
+    --alert-500: 221 122 8;
+    --alert-600: 180 83 9;
+    --alert-700: 140 63 8;
+
+    /* --- ink · cool neutrals with a teal cast --- */
+    --ink-25:  247 249 249;
+    --ink-50:  241 244 244;
+    --ink-100: 228 233 233;
+    --ink-200: 208 216 216;
+    --ink-300: 175 187 188;
+    --ink-400: 126 141 143;
+    --ink-500: 90 106 109;
+    --ink-600: 67 81 84;
+    --ink-700: 46 58 60;
+    --ink-800: 27 38 40;
+    --ink-900: 16 27 29;
+    --ink-950: 8 18 20;
+
+    /* --- danger · destructive actions only --- */
+    --danger-50:  253 236 236;
+    --danger-400: 242 109 109;
+    --danger-500: 217 58 58;
+    --danger-600: 188 44 44;
+
+    /* --- semantic surfaces (light) --- */
+    --bg:        var(--ink-50);
+    --surface:   255 255 255;
+    --surface-2: var(--ink-25);
+    --border:    var(--ink-100);
+    --border-strong: var(--ink-200);
+    --text:      var(--ink-900);
+    --text-muted: var(--ink-500);
+    --text-faint: var(--ink-400);
+    --brand:     var(--qano-600);
+    --brand-fg:  255 255 255;
+    --ring:      var(--qano-500);
+
+    /* The frame is dark in BOTH modes. It is the duty board. */
+    --frame:      var(--ink-950);
+    --frame-2:    var(--ink-900);
+    --frame-line: 30 45 47;
+    --frame-text: var(--ink-25);
+    --frame-muted: var(--ink-400);
+    --frame-brand: var(--qano-400);
+
+    --radius: 10px;
+    --radius-sm: 7px;
+    --radius-lg: 14px;
+  }
+
+  .dark {
+    --bg:        var(--ink-950);
+    --surface:   var(--ink-900);
+    --surface-2: var(--ink-800);
+    --border:    30 45 47;
+    --border-strong: var(--ink-700);
+    --text:      var(--ink-25);
+    --text-muted: var(--ink-400);
+    --text-faint: var(--ink-500);
+    --brand:     var(--qano-400);
+    --brand-fg:  var(--ink-950);
+    --ring:      var(--qano-400);
+  }
+
+  * { border-color: rgb(var(--border)); }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    background-color: rgb(var(--bg));
+    color: rgb(var(--text));
+    font-family: var(--font-sans), "Segoe UI", system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Arabic has no uppercase, so an "eyebrow" is built from
+     letter-spacing and weight rather than caps. */
+  .eyebrow {
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: rgb(var(--text-faint));
+  }
+
+  /* Every machine-generated value — phone numbers, money, durations,
+     ids, timestamps — is mono and left-to-right, always. */
+  .num {
+    font-family: var(--font-mono), "Cascadia Mono", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    direction: ltr;
+    unicode-bidi: isolate;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background-color: rgb(var(--qano-200));
+    color: rgb(var(--ink-900));
+  }
+  .dark ::selection {
+    background-color: rgb(var(--qano-800));
+    color: rgb(var(--ink-25));
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Quiet scrollbars — this is a console people stare at all day. */
+  * { scrollbar-width: thin; scrollbar-color: rgb(var(--ink-300)) transparent; }
+  .dark * { scrollbar-color: rgb(var(--ink-700)) transparent; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--ink-300));
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  .dark ::-webkit-scrollbar-thumb { background-color: rgb(var(--ink-700)); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* The signature element. A leading-edge rail on every row that
+     represents a unit of work, in every list in the product. */
+  .rail { position: relative; }
+  .rail::before {
+    content: "";
+    position: absolute;
+    inset-inline-start: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: transparent;
+    transition: background-color 150ms ease;
+  }
+  .rail-auto::before  { background-color: rgb(var(--qano-500)); }
+  .rail-alert::before { background-color: rgb(var(--alert-400)); }
+  .rail-human::before { background-color: rgb(var(--ink-300)); }
+  .dark .rail-human::before { background-color: rgb(var(--ink-600)); }
+  .rail-done::before  { background-color: transparent; }
 }

@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { ScheduleModule } from "@nestjs/schedule";
+import { MulterModule } from "@nestjs/platform-express";
 import { AuthModule } from "./auth/auth.module";
 import { OrganizationsModule } from "./organizations/organizations.module";
 import { WhatsAppModule } from "./whatsapp/whatsapp.module";
@@ -16,11 +17,26 @@ import { WebhooksModule } from "./webhooks/webhooks.module";
 import { AuditModule } from "./audit/audit.module";
 import { FilesModule } from "./files/files.module";
 import { PlatformModule } from "./platform/platform.module";
+import { MarketingModule } from "./marketing/marketing.module";
+import { VoiceModule } from "./voice/voice.module";
+import { PrivacyModule } from "./privacy/privacy.module";
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
+    // A default ceiling for every multipart upload in the application. Without
+    // it multer buffered a request of any size in memory before a controller
+    // ever saw it, so a single upload could exhaust the container. Routes that
+    // need a tighter limit still declare their own.
+    MulterModule.register({
+      limits: {
+        fileSize: 10 * 1024 * 1024,
+        files: 1,
+        fields: 20,
+        fieldSize: 100 * 1024,
+      },
+    }),
     AuthModule,
     OrganizationsModule,
     WhatsAppModule,
@@ -36,6 +52,9 @@ import { PlatformModule } from "./platform/platform.module";
     AuditModule,
     FilesModule,
     PlatformModule,
+    MarketingModule,
+    VoiceModule,
+    PrivacyModule,
   ],
 })
 export class AppModule {}

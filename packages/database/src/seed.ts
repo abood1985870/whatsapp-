@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
+import { syncPermissions } from "./sync-permissions";
 
 const prisma = new PrismaClient();
 
@@ -36,12 +37,29 @@ async function main() {
     { code: "message.send", name: "إرسال رسالة", category: "messages" },
     { code: "message.read", name: "قراءة رسالة", category: "messages" },
     { code: "message.broadcast", name: "بث الرسائل", category: "messages" },
+    { code: "marketing.read", name: "قراءة التسويق", category: "marketing" },
+    { code: "marketing.products.manage", name: "إدارة البرامج", category: "marketing" },
+    { code: "marketing.leads.manage", name: "إدارة العملاء المحتملين", category: "marketing" },
+    { code: "marketing.campaigns.manage", name: "إدارة الحملات", category: "marketing" },
+    { code: "marketing.campaigns.start", name: "تشغيل الحملات", category: "marketing" },
+    { code: "marketing.dnc.manage", name: "إدارة قائمة عدم التواصل", category: "marketing" },
+    { code: "marketing.settings.manage", name: "إدارة إعدادات التسويق", category: "marketing" },
+    { code: "marketing.analytics.read", name: "قراءة تحليلات التسويق", category: "marketing" },
   ];
 
   for (const perm of permissions) {
     await prisma.permission.upsert({ where: { code: perm.code }, update: {}, create: perm });
   }
-  console.log("✅ Permissions created");
+
+  // The list above is legacy and had drifted from the codes the API actually
+  // checks. syncPermissions reconciles the catalogue and every system role
+  // against packages/permissions, which is the source of truth. It runs at
+  // deploy time too - `pnpm --filter @qanoai/database db:sync-permissions`.
+  const sync = await syncPermissions(prisma);
+  console.log(
+    `✅ Permissions synced (+${sync.permissionsInserted} codes, +${sync.grantsAdded} grants, ` +
+    `-${sync.grantsRemoved} stale grants, +${sync.rolesCreated} roles)`
+  );
 
   // Create roles
   const roles = [
@@ -64,15 +82,17 @@ async function main() {
   }
   console.log("✅ Roles created");
 
-  // Assign ALL permissions to OWNER role
+  // Assign ALL permissions to OWNER and PLATFORM_SUPER_ADMIN roles
   const allPerms = await prisma.permission.findMany();
   type SeedPermission = (typeof allPerms)[number];
-  for (const perm of allPerms) {
-    await prisma.rolePermission.upsert({
-      where: { roleId_permissionId: { roleId: createdRoles["ORGANIZATION_OWNER"], permissionId: perm.id } },
-      update: {},
-      create: { roleId: createdRoles["ORGANIZATION_OWNER"], permissionId: perm.id },
-    });
+  for (const roleName of ["ORGANIZATION_OWNER", "PLATFORM_SUPER_ADMIN"]) {
+    for (const perm of allPerms) {
+      await prisma.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: createdRoles[roleName], permissionId: perm.id } },
+        update: {},
+        create: { roleId: createdRoles[roleName], permissionId: perm.id },
+      });
+    }
   }
 
   // Assign permissions to SUPPORT_MANAGER role
@@ -108,6 +128,15 @@ async function main() {
   }
 
   console.log("✅ Role permissions assigned");
+
+  // NOTE ON SEED DATA
+  //
+  // The demo contacts use +96650000000x, which is not a routable Saudi mobile
+  // number. The previous values looked like real ones, and a seeded demo
+  // conversation set to AI_AUTOMATIC on a connected WhatsApp instance is a
+  // message to a stranger — sent by the product, from the tenant's number,
+  // because someone ran the seed against an environment that had a live
+  // connection. Demo conversations are HUMAN_ONLY for the same reason.
 
   // Create demo users
   const passwordHash = await bcrypt.hash("DemoPass123!", 12);
@@ -168,9 +197,9 @@ async function main() {
   let contacts: any[];
   if (existingContacts === 0) {
     contacts = await Promise.all([
-      prisma.contact.create({ data: { organizationId: org.id, primaryPhone: "+966501234567", normalizedPhone: "966501234567", name: "أحمد محمد", language: "ar", source: "WHATSAPP" } }),
-      prisma.contact.create({ data: { organizationId: org.id, primaryPhone: "+966507654321", normalizedPhone: "966507654321", name: "سارة عبدالله", language: "ar", source: "WHATSAPP" } }),
-      prisma.contact.create({ data: { organizationId: org.id, primaryPhone: "+966501112222", normalizedPhone: "966501112222", name: "خالد العلي", language: "ar", source: "WHATSAPP" } }),
+      prisma.contact.create({ data: { organizationId: org.id, primaryPhone: "+966500000001", normalizedPhone: "966500000001", name: "أحمد محمد", language: "ar", source: "WHATSAPP" } }),
+      prisma.contact.create({ data: { organizationId: org.id, primaryPhone: "+966500000002", normalizedPhone: "966500000002", name: "سارة عبدالله", language: "ar", source: "WHATSAPP" } }),
+      prisma.contact.create({ data: { organizationId: org.id, primaryPhone: "+966500000003", normalizedPhone: "966500000003", name: "خالد العلي", language: "ar", source: "WHATSAPP" } }),
     ]);
   } else {
     contacts = await prisma.contact.findMany({ where: { organizationId: org.id }, take: 3 });
@@ -194,9 +223,9 @@ async function main() {
   const existingConvos = await prisma.conversation.count({ where: { organizationId: org.id } });
   if (existingConvos === 0 && contacts.length >= 3) {
     const conversations = await Promise.all([
-      prisma.conversation.create({ data: { organizationId: org.id, channelConnectionId: channelConnection.id, contactId: contacts[0].id, status: "OPEN", mode: "AI_AUTOMATIC", priority: "MEDIUM" } }),
+      prisma.conversation.create({ data: { organizationId: org.id, channelConnectionId: channelConnection.id, contactId: contacts[0].id, status: "OPEN", mode: "HUMAN_ONLY", priority: "MEDIUM" } }),
       prisma.conversation.create({ data: { organizationId: org.id, channelConnectionId: channelConnection.id, contactId: contacts[1].id, status: "WAITING_FOR_AGENT", mode: "HUMAN_ONLY", priority: "HIGH" } }),
-      prisma.conversation.create({ data: { organizationId: org.id, channelConnectionId: channelConnection.id, contactId: contacts[2].id, status: "RESOLVED", mode: "AI_AUTOMATIC", priority: "LOW" } }),
+      prisma.conversation.create({ data: { organizationId: org.id, channelConnectionId: channelConnection.id, contactId: contacts[2].id, status: "RESOLVED", mode: "HUMAN_ONLY", priority: "LOW" } }),
     ]);
 
     // Create demo messages

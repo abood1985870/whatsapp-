@@ -20,152 +20,152 @@ export class OrganizationsController {
     return this.orgsService.findByUser(user.id);
   }
 
-  @Get(":id")
-  @UseGuards(OrganizationGuard)
+  @Get(":organizationId")
+  @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("organization.read")
-  async get(@Param("id") id: string) {
-    return this.orgsService.findOne(id);
+  async get(@Param("organizationId") organizationId: string) {
+    return this.orgsService.findOne(organizationId);
   }
 
-  @Patch(":id")
+  @Patch(":organizationId")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("organization.update")
-  async update(@Param("id") id: string, @Body() dto: any) {
-    return this.orgsService.update(id, dto);
+  async update(@Param("organizationId") organizationId: string, @Body() dto: any) {
+    return this.orgsService.update(organizationId, dto);
   }
 
-  @Get(":id/members")
+  @Get(":organizationId/members")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("members.read")
   @ApiQuery({ name: "page", required: false, type: Number })
   @ApiQuery({ name: "limit", required: false, type: Number })
-  async listMembers(@Param("id") id: string, @Query("page") page = 1, @Query("limit") limit = 10) {
-    return this.orgsService.listMembers(id, Number(page), Number(limit));
+  async listMembers(@Param("organizationId") organizationId: string, @Query("page") page = 1, @Query("limit") limit = 10) {
+    return this.orgsService.listMembers(organizationId, Number(page), Number(limit));
   }
 
-  @Post(":id/invite")
+  @Post(":organizationId/invite")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("members.invite")
-  async inviteMember(@Param("id") id: string, @Body() dto: any, @CurrentUser() user: any) {
-    return this.orgsService.inviteMember(id, dto, user.id);
+  async inviteMember(@Param("organizationId") organizationId: string, @Body() dto: any, @CurrentUser() user: any) {
+    return this.orgsService.inviteMember(organizationId, dto, user.id);
   }
 
-  @Patch(":id/members/:membershipId")
+  @Patch(":organizationId/members/:membershipId")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("members.update")
-  async updateMemberRole(@Param("id") id: string, @Param("membershipId") membershipId: string, @Body() dto: any) {
-    return this.orgsService.updateMemberRole(id, membershipId, dto);
+  async updateMemberRole(@Param("organizationId") organizationId: string, @Param("membershipId") membershipId: string, @Body() dto: any) {
+    return this.orgsService.updateMemberRole(organizationId, membershipId, dto);
   }
 
-  @Delete(":id/members/:membershipId")
+  @Delete(":organizationId/members/:membershipId")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("members.remove")
-  async removeMember(@Param("id") id: string, @Param("membershipId") membershipId: string) {
-    return this.orgsService.removeMember(id, membershipId);
+  async removeMember(@Param("organizationId") organizationId: string, @Param("membershipId") membershipId: string) {
+    return this.orgsService.removeMember(organizationId, membershipId);
   }
 
-  @Get(":id/roles")
+  @Get(":organizationId/roles")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("roles.read")
-  async listRoles(@Param("id") id: string) {
-    return this.orgsService.listRoles(id);
+  async listRoles(@Param("organizationId") organizationId: string) {
+    return this.orgsService.listRoles(organizationId);
   }
 
-  @Post(":id/roles")
+  @Post(":organizationId/roles")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("roles.manage")
-  async createRole(@Param("id") id: string, @Body() dto: any) {
-    return this.orgsService.createRole(id, dto);
+  async createRole(@Param("organizationId") organizationId: string, @Body() dto: any) {
+    return this.orgsService.createRole(organizationId, dto);
   }
 
-  @Patch(":id/roles/:roleId")
+  @Patch(":organizationId/roles/:roleId")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("roles.manage")
-  async updateRole(@Param("id") id: string, @Param("roleId") roleId: string, @Body() dto: any) {
-    return this.orgsService.updateRole(id, roleId, dto);
+  async updateRole(@Param("organizationId") organizationId: string, @Param("roleId") roleId: string, @Body() dto: any) {
+    return this.orgsService.updateRole(organizationId, roleId, dto);
   }
 
-  @Get(":id/branches")
+  @Get(":organizationId/branches")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("branch.read")
-  async listBranches(@Param("id") id: string) {
-    return this.orgsService.listBranches(id);
+  async listBranches(@Param("organizationId") organizationId: string) {
+    return this.orgsService.listBranches(organizationId);
   }
 
-  @Post(":id/branches")
+  @Post(":organizationId/branches")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("branch.create")
-  async createBranch(@Param("id") id: string, @Body() dto: any) {
-    return this.orgsService.createBranch(id, dto);
+  async createBranch(@Param("organizationId") organizationId: string, @Body() dto: any) {
+    return this.orgsService.createBranch(organizationId, dto);
   }
 
-  @Get(":id/teams")
+  @Get(":organizationId/teams")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("team.read")
-  async listTeams(@Param("id") id: string) {
-    return this.orgsService.listTeams(id);
+  async listTeams(@Param("organizationId") organizationId: string) {
+    return this.orgsService.listTeams(organizationId);
   }
 
-  @Post(":id/teams")
+  @Post(":organizationId/teams")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("team.create")
-  async createTeam(@Param("id") id: string, @Body() dto: any) {
-    return this.orgsService.createTeam(id, dto);
+  async createTeam(@Param("organizationId") organizationId: string, @Body() dto: any) {
+    return this.orgsService.createTeam(organizationId, dto);
   }
 
-  @Get(":id/routing-rules")
+  @Get(":organizationId/routing-rules")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("routing.read")
-  async listRoutingRules(@Param("id") id: string) {
-    return this.orgsService.listRoutingRules(id);
+  async listRoutingRules(@Param("organizationId") organizationId: string) {
+    return this.orgsService.listRoutingRules(organizationId);
   }
 
-  @Post(":id/routing-rules")
+  @Post(":organizationId/routing-rules")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("routing.create")
-  async createRoutingRule(@Param("id") id: string, @Body() dto: any) {
-    return this.orgsService.createRoutingRule(id, dto);
+  async createRoutingRule(@Param("organizationId") organizationId: string, @Body() dto: any) {
+    return this.orgsService.createRoutingRule(organizationId, dto);
   }
 
-  @Get(":id/working-hours")
+  @Get(":organizationId/working-hours")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("settings.read")
-  async listWorkingHours(@Param("id") id: string) {
-    return this.orgsService.listWorkingHours(id);
+  async listWorkingHours(@Param("organizationId") organizationId: string) {
+    return this.orgsService.listWorkingHours(organizationId);
   }
 
-  @Post(":id/working-hours")
+  @Post(":organizationId/working-hours")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("settings.update")
-  async setWorkingHours(@Param("id") id: string, @Body() dto: any) {
-    return this.orgsService.setWorkingHours(id, dto);
+  async setWorkingHours(@Param("organizationId") organizationId: string, @Body() dto: any) {
+    return this.orgsService.setWorkingHours(organizationId, dto);
   }
 
-  @Get(":id/holidays")
+  @Get(":organizationId/holidays")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("settings.read")
-  async listHolidays(@Param("id") id: string) {
-    return this.orgsService.listHolidays(id);
+  async listHolidays(@Param("organizationId") organizationId: string) {
+    return this.orgsService.listHolidays(organizationId);
   }
 
-  @Post(":id/holidays")
+  @Post(":organizationId/holidays")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("settings.update")
-  async addHoliday(@Param("id") id: string, @Body() dto: any) {
-    return this.orgsService.addHoliday(id, dto);
+  async addHoliday(@Param("organizationId") organizationId: string, @Body() dto: any) {
+    return this.orgsService.addHoliday(organizationId, dto);
   }
 
-  @Get(":id/sla-policies")
+  @Get(":organizationId/sla-policies")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("sla.read")
-  async listSlaPolicies(@Param("id") id: string) {
-    return this.orgsService.listSlaPolicies(id);
+  async listSlaPolicies(@Param("organizationId") organizationId: string) {
+    return this.orgsService.listSlaPolicies(organizationId);
   }
 
-  @Post(":id/sla-policies")
+  @Post(":organizationId/sla-policies")
   @UseGuards(OrganizationGuard, PermissionGuard)
   @RequirePermission("sla.create")
-  async createSlaPolicy(@Param("id") id: string, @Body() dto: any) {
-    return this.orgsService.createSlaPolicy(id, dto);
+  async createSlaPolicy(@Param("organizationId") organizationId: string, @Body() dto: any) {
+    return this.orgsService.createSlaPolicy(organizationId, dto);
   }
 }

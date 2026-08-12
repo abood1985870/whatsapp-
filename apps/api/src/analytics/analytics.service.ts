@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
 import { prisma } from "@qanoai/database";
+import { csvRow } from "@qanoai/shared";
 
 @Injectable()
 export class AnalyticsService {
@@ -128,16 +129,16 @@ export class AnalyticsService {
       return `Metric,Value\nTotal Conversations,${stats.totalConversations}\nActive Conversations,${stats.activeConversations}\nResolved Conversations,${stats.resolvedConversations}\nTotal Messages,${stats.totalMessages}\nHandoff Count,${stats.handoffCount}\nAvg AI Confidence,${stats.avgAiConfidence}\n`;
     } else if (type === "agents") {
       const stats = await this.getAgentMetrics(organizationId, from, to);
-      let csv = "Agent Name,Total Runs,Successful Runs,Total Tokens\n";
+      let csv = csvRow(["Agent Name", "Total Runs", "Successful Runs", "Total Tokens"]) + "\n";
       for (const stat of stats) {
-        csv += `"${stat.name}",${stat.totalRuns},${stat.successfulRuns},${stat.totalTokens}\n`;
+        csv += csvRow([stat.name, stat.totalRuns, stat.successfulRuns, stat.totalTokens]) + "\n";
       }
       return csv;
     } else if (type === "team") {
       const stats = await this.getTeamMetrics(organizationId, from, to);
-      let csv = "Team Member,Messages Sent\n";
+      let csv = csvRow(["Team Member", "Messages Sent"]) + "\n";
       for (const stat of stats) {
-        csv += `"${stat.name}",${stat.messagesSent}\n`;
+        csv += csvRow([stat.name, stat.messagesSent]) + "\n";
       }
       return csv;
     } else {

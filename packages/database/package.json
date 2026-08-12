@@ -10,14 +10,19 @@
     "db:migrate": "prisma migrate dev --schema=../../prisma/schema.prisma",
     "db:deploy": "prisma migrate deploy --schema=../../prisma/schema.prisma",
     "db:seed": "tsx src/seed.ts",
+    "db:bootstrap-marketing": "tsx src/bootstrap-marketing.ts",
     "db:reset": "prisma migrate reset --force --schema=../../prisma/schema.prisma",
     "lint": "eslint src/**/*.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:sync-permissions": "tsx src/sync-permissions.cli.ts",
+    "db:apply-2fa-column": "tsx src/apply-2fa-column.ts",
+    "db:apply-outbound-safety": "tsx src/apply-outbound-safety.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.14.0",
     "bcryptjs": "^2.4.3",
-    "prisma": "^5.14.0"
+    "prisma": "^5.14.0",
+    "@qanoai/permissions": "workspace:*"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

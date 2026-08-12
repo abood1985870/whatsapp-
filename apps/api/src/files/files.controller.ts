@@ -7,6 +7,7 @@ import { PermissionGuard } from "../common/guards/permission.guard";
 import { RequirePermission } from "../common/decorators/require-permission.decorator";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Response } from "express";
+import { CurrentOrganization } from "../common/decorators/current-organization.decorator";
 
 @ApiTags("Files")
 @Controller({ path: "files", version: "1" })
@@ -18,28 +19,31 @@ export class FilesController {
   @Post("upload")
   @UseGuards(PermissionGuard)
   @RequirePermission("settings.update") // Using a generic permission since files isn't in default seeds
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024, files: 1 } }))
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' }, organizationId: { type: 'string' } } } })
-  async upload(
-    @UploadedFile() file: any, 
-    @Body() dto: { organizationId: string }
-  ) {
-    return this.filesService.uploadFile(file, dto.organizationId);
+  async upload(@UploadedFile() file: any, @CurrentOrganization() organizationId: string) {
+    // The organization comes from the membership, not the multipart body —
+    // guards run before multer, so a form field is unverified by construction.
+    return this.filesService.uploadFile(file, organizationId);
   }
 
   @Get(":id/download")
   @UseGuards(PermissionGuard)
   @RequirePermission("settings.read")
-  async download(@Param("id") id: string, @Res() res: Response) {
-    const file = await this.filesService.getFile(id);
-    return res.redirect(file.url);
+  async download(
+    @Param("id") id: string,
+    @CurrentOrganization() organizationId: string,
+    @Res() res: Response
+  ) {
+    const file = await this.filesService.getFile(id, organizationId);
+    return res.redirect(file.storageKey);
   }
 
   @Delete(":id")
   @UseGuards(PermissionGuard)
   @RequirePermission("settings.update")
-  async delete(@Param("id") id: string) {
-    return this.filesService.deleteFile(id);
+  async delete(@Param("id") id: string, @CurrentOrganization() organizationId: string) {
+    return this.filesService.deleteFile(id, organizationId);
   }
 }

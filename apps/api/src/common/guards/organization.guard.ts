@@ -1,23 +1,19 @@
-import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from "@nestjs/common";
-import { Request } from "express";
+import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
+import { resolveMembership } from "./resolve-membership";
 
+/**
+ * Proves the caller belongs to the organization the request names.
+ *
+ * Until the `:id` → `:organizationId` rename this guard was a no-op on every
+ * route in `organizations.controller.ts`: it read `params.organizationId`,
+ * the routes declared `:id`, so `orgId` was always undefined and the guard
+ * returned true without checking anything.
+ */
 @Injectable()
 export class OrganizationGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<Request>();
-    const user = (request as any).user;
-    const orgId = request.params?.organizationId || request.body?.organizationId || request.query?.organizationId;
-
-    if (!orgId) {
-      return true;
-    }
-
-    const membership = user?.memberships?.find((m: any) => m.organizationId === orgId);
-    if (!membership || membership.status !== "ACTIVE") {
-      throw new ForbiddenException("ORGANIZATION_ACCESS_DENIED");
-    }
-
-    (request as any).membership = membership;
+    const request = context.switchToHttp().getRequest();
+    resolveMembership(request);
     return true;
   }
 }

@@ -38,9 +38,83 @@ export const PERMISSIONS = {
   INTEGRATIONS_MANAGE: "integrations.manage",
   AUDIT_READ: "audit.read",
   SETTINGS_MANAGE: "settings.manage",
+  MARKETING_READ: "marketing.read",
+  MARKETING_PRODUCTS_MANAGE: "marketing.products.manage",
+  MARKETING_LEADS_MANAGE: "marketing.leads.manage",
+  MARKETING_CAMPAIGNS_MANAGE: "marketing.campaigns.manage",
+  MARKETING_CAMPAIGNS_START: "marketing.campaigns.start",
+  MARKETING_DNC_MANAGE: "marketing.dnc.manage",
+  MARKETING_SETTINGS_MANAGE: "marketing.settings.manage",
+  MARKETING_ANALYTICS_READ: "marketing.analytics.read",
+  VOICE_READ: "voice.read",
+  VOICE_AGENT_MANAGE: "voice.agent.manage",
+  VOICE_NUMBERS_MANAGE: "voice.numbers.manage",
+  VOICE_SETTINGS_MANAGE: "voice.settings.manage",
+  VOICE_CALLS_READ: "voice.calls.read",
+  VOICE_RECORDINGS_ACCESS: "voice.recordings.access",
+  VOICE_ANALYTICS_READ: "voice.analytics.read",
+  VOICE_DIAGNOSTICS_RUN: "voice.diagnostics.run",
+
+  // Codes the API already enforces with @RequirePermission but which were never
+  // in this map, and therefore never existed in the database. PermissionGuard
+  // denies a code it cannot find, so every one of these routes was closed to
+  // everybody — including the organization owner. That is why the settings,
+  // branches, teams, routing and SLA screens were dead.
+  SETTINGS_READ: "settings.read",
+  SETTINGS_UPDATE: "settings.update",
+  BRANCH_READ: "branch.read",
+  BRANCH_CREATE: "branch.create",
+  TEAM_READ: "team.read",
+  TEAM_CREATE: "team.create",
+  ROUTING_READ: "routing.read",
+  ROUTING_CREATE: "routing.create",
+  SLA_READ: "sla.read",
+  SLA_CREATE: "sla.create",
+  WHATSAPP_UPDATE: "whatsapp.update",
+  CONVERSATIONS_UPDATE: "conversations.update",
+  MESSAGE_READ: "message.read",
+  MESSAGE_SEND: "message.send",
+  MESSAGE_BROADCAST: "message.broadcast",
 } as const;
 
 export type PermissionCode = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+// Feature-entitlement keys for the AI Sales & Marketing module.
+// Stored per-organization in the `entitlements` table; AI_SALES_MODULE is
+// the master switch checked by the API guard, the rest gate sub-features.
+export const MARKETING_CAPABILITIES = {
+  AI_SALES_MODULE: "AI_SALES_MODULE",
+  PRODUCT_CATALOG: "PRODUCT_CATALOG",
+  LEAD_DISCOVERY: "LEAD_DISCOVERY",
+  LEAD_IMPORT: "LEAD_IMPORT",
+  MARKETING_CAMPAIGNS: "MARKETING_CAMPAIGNS",
+  AI_PERSONALIZATION: "AI_PERSONALIZATION",
+  AI_SALES_AGENT: "AI_SALES_AGENT",
+  DO_NOT_CONTACT: "DO_NOT_CONTACT",
+  SALES_ANALYTICS: "SALES_ANALYTICS",
+  SALES_SETTINGS: "SALES_SETTINGS",
+} as const;
+
+export type MarketingCapability = (typeof MARKETING_CAPABILITIES)[keyof typeof MARKETING_CAPABILITIES];
+
+// Feature-entitlement keys for the AI Voice Employee module.
+// AI_VOICE_MODULE is the master switch checked by the API guard; the rest
+// gate sub-features so an organization can hold a partial voice plan.
+export const VOICE_CAPABILITIES = {
+  AI_VOICE_MODULE: "AI_VOICE_MODULE",
+  VOICE_AGENT_MANAGEMENT: "VOICE_AGENT_MANAGEMENT",
+  VOICE_NUMBERS: "VOICE_NUMBERS",
+  VOICE_TOOLS: "VOICE_TOOLS",
+  VOICE_KNOWLEDGE: "VOICE_KNOWLEDGE",
+  VOICE_ANALYTICS: "VOICE_ANALYTICS",
+  VOICE_RECORDINGS: "VOICE_RECORDINGS",
+  VOICE_VERIFICATION: "VOICE_VERIFICATION",
+  VOICE_USAGE: "VOICE_USAGE",
+  VOICE_SETTINGS: "VOICE_SETTINGS",
+  VOICE_DIAGNOSTICS: "VOICE_DIAGNOSTICS",
+} as const;
+
+export type VoiceCapability = (typeof VOICE_CAPABILITIES)[keyof typeof VOICE_CAPABILITIES];
 
 export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
   PLATFORM_SUPER_ADMIN: Object.values(PERMISSIONS),
@@ -83,6 +157,21 @@ export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     PERMISSIONS.INTEGRATIONS_MANAGE,
     PERMISSIONS.AUDIT_READ,
     PERMISSIONS.SETTINGS_MANAGE,
+    PERMISSIONS.SETTINGS_READ,
+    PERMISSIONS.SETTINGS_UPDATE,
+    PERMISSIONS.BRANCH_READ,
+    PERMISSIONS.BRANCH_CREATE,
+    PERMISSIONS.TEAM_READ,
+    PERMISSIONS.TEAM_CREATE,
+    PERMISSIONS.ROUTING_READ,
+    PERMISSIONS.ROUTING_CREATE,
+    PERMISSIONS.SLA_READ,
+    PERMISSIONS.SLA_CREATE,
+    PERMISSIONS.WHATSAPP_UPDATE,
+    PERMISSIONS.CONVERSATIONS_UPDATE,
+    PERMISSIONS.MESSAGE_READ,
+    PERMISSIONS.MESSAGE_SEND,
+    PERMISSIONS.MESSAGE_BROADCAST,
   ],
   SUPPORT_MANAGER: [
     PERMISSIONS.ORGANIZATION_READ,
@@ -103,6 +192,24 @@ export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     PERMISSIONS.TRAINING_READ,
     PERMISSIONS.ANALYTICS_READ,
     PERMISSIONS.SETTINGS_MANAGE,
+    PERMISSIONS.SETTINGS_READ,
+    PERMISSIONS.BRANCH_READ,
+    PERMISSIONS.TEAM_READ,
+    PERMISSIONS.ROUTING_READ,
+    PERMISSIONS.SLA_READ,
+    PERMISSIONS.WHATSAPP_UPDATE,
+    PERMISSIONS.CONVERSATIONS_UPDATE,
+    PERMISSIONS.MESSAGE_READ,
+    PERMISSIONS.MESSAGE_SEND,
+    PERMISSIONS.MESSAGE_BROADCAST,
+    // Kept because the database already grants these to this role today.
+    // Removing a capability an existing team relies on is not this commit's job.
+    PERMISSIONS.ORGANIZATION_UPDATE,
+    PERMISSIONS.WHATSAPP_CONNECT,
+    PERMISSIONS.WHATSAPP_DISCONNECT,
+    PERMISSIONS.AI_CONFIGURE,
+    PERMISSIONS.AI_PUBLISH,
+    PERMISSIONS.KNOWLEDGE_UPDATE,
   ],
   SUPPORT_AGENT: [
     PERMISSIONS.ORGANIZATION_READ,
@@ -115,6 +222,9 @@ export const ROLE_PERMISSIONS: Record<string, PermissionCode[]> = {
     PERMISSIONS.CONVERSATIONS_ASSIGN,
     PERMISSIONS.AI_READ,
     PERMISSIONS.KNOWLEDGE_READ,
+    PERMISSIONS.CONVERSATIONS_UPDATE,
+    PERMISSIONS.MESSAGE_READ,
+    PERMISSIONS.MESSAGE_SEND,
   ],
   ANALYST: [
     PERMISSIONS.ORGANIZATION_READ,

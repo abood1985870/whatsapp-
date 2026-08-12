@@ -9,6 +9,12 @@
     "target": "ES2022",
     "sourceMap": true,
     "outDir": "./dist",
+    // rootDir pins the emit layout. Without it, a single import that reaches
+    // outside src/ (a test importing package source directly) makes tsc hoist
+    // the inferred root to the repo root, so main.js lands at
+    // dist/apps/api/src/main.js while package.json still starts dist/main.js.
+    // The API then exits MODULE_NOT_FOUND on a clean deploy and never boots.
+    "rootDir": "./src",
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
@@ -21,5 +27,7 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  // Tests are compiled by ts-jest, never shipped. Excluding them here keeps
+  // their imports out of the build graph entirely.
+  "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/__tests__/**"]
 }

@@ -6,6 +6,7 @@ import { OrganizationGuard } from "../common/guards/organization.guard";
 import { PermissionGuard } from "../common/guards/permission.guard";
 import { RequirePermission } from "../common/decorators/require-permission.decorator";
 import { CurrentUser } from "../common/decorators/current-user.decorator";
+import { CurrentOrganization } from "../common/decorators/current-organization.decorator";
 
 @ApiTags("WhatsApp")
 @Controller({ path: "whatsapp", version: "1" })
@@ -45,7 +46,7 @@ export class WhatsAppController {
   @Get("connections")
   @UseGuards(PermissionGuard)
   @RequirePermission("whatsapp.read")
-  async listConnections(@Query("organizationId") organizationId: string) {
+  async listConnections(@CurrentOrganization() organizationId: string) {
     return this.whatsappService.findByOrganization(organizationId);
   }
 

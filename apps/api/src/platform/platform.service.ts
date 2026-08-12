@@ -5,9 +5,30 @@ import { generateCorrelationId } from "@qanoai/shared";
 
 @Injectable()
 export class PlatformService {
+  /**
+   * Platform ownership is a property of the GLOBAL system role, not of a name.
+   *
+   * The previous check compared `role.name === "PLATFORM_SUPER_ADMIN"` and
+   * nothing else. Role names are unique per organization, not globally, so any
+   * customer who could create a role in their own organization — or rename one —
+   * could call it PLATFORM_SUPER_ADMIN, assign it to themselves, and every route
+   * on this service would treat them as the platform owner: every organization's
+   * data, every user, every subscription. It is blocked today only because the
+   * two permission codes needed to reach role management were never seeded, and
+   * this commit seeds them.
+   *
+   * So the check now requires all three: the role is a system role, it belongs
+   * to no organization, and it is the platform role. A tenant cannot create such
+   * a row through any API surface — `createRole` always sets an organizationId
+   * and never sets isSystem.
+   */
   private assertPlatformOwner(user: any) {
     const isPlatformOwner = (user?.memberships || []).some(
-      (membership: any) => membership.status === "ACTIVE" && membership.role?.name === "PLATFORM_SUPER_ADMIN"
+      (membership: any) =>
+        membership.status === "ACTIVE" &&
+        membership.role?.isSystem === true &&
+        membership.role?.organizationId === null &&
+        membership.role?.name === "PLATFORM_SUPER_ADMIN"
     );
     if (!isPlatformOwner) throw new ForbiddenException("PLATFORM_OWNER_REQUIRED");
   }

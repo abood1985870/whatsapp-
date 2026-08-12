@@ -5,7 +5,14 @@ import Link from "next/link";
 import api from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { useSocket } from "@/hooks/useSocket";
-import { Send, Phone, Bot, ArrowRight, Check, CheckCheck, Clock, UserCheck, CheckCircle2, RotateCcw, Ban } from "lucide-react";
+import { cn, Button } from "@/components/ui/button";
+import { Phone as PhoneValue } from "@/components/ui/data";
+import { DutyBand, dutyOf } from "@/components/ui/duty";
+import { LoadingRows, EmptyState } from "@/components/ui/page";
+import {
+  Send, Bot, ArrowRight, Check, CheckCheck, Clock, UserCheck,
+  CheckCircle2, RotateCcw, Ban, MoreVertical, MessageSquareOff, AlertCircle,
+} from "lucide-react";
 
 interface Message {
   id: string;
@@ -22,9 +29,19 @@ interface ConversationDetail {
   contact: { name: string | null; primaryPhone: string };
   status: string;
   mode: string;
+  assignedMembership?: { user: { name: string } } | null;
   messages: Message[];
 }
 
+/**
+ * المحادثة.
+ *
+ * Two things this screen has to answer before anything else: who is holding
+ * this conversation right now, and which of these replies came from the machine.
+ * The band at the top answers the first; the teal tint on AI bubbles answers
+ * the second — the same rule as everywhere else, a hue means the machine was
+ * involved. A reply a human typed looks like plain paper.
+ */
 export default function ConversationPage() {
   const params = useParams();
   const id = params.id as string;
@@ -33,14 +50,16 @@ export default function ConversationPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { socket, isConnected, joinConversation, leaveConversation, emitTyping } = useSocket();
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => { 
+  useEffect(() => {
     if (id) {
       loadConversation();
       joinConversation(id);
@@ -50,8 +69,8 @@ export default function ConversationPage() {
     };
   }, [id, isConnected]);
 
-  useEffect(() => { 
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }); 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation?.messages, typingUsers]);
 
   useEffect(() => {
@@ -61,8 +80,7 @@ export default function ConversationPage() {
       if (msg.conversationId === id) {
         setConversation((prev) => {
           if (!prev) return prev;
-          // Prevent duplicates
-          if (prev.messages.some(m => m.id === msg.id)) return prev;
+          if (prev.messages.some((m) => m.id === msg.id)) return prev;
           return { ...prev, messages: [...prev.messages, msg] };
         });
         setTypingUsers((prev) => {
@@ -73,15 +91,17 @@ export default function ConversationPage() {
       }
     };
 
-    const handleMessageStatus = (data: { messageId: string, status: string }) => {
+    const handleMessageStatus = (data: { messageId: string; status: string }) => {
       setConversation((prev) => {
         if (!prev) return prev;
-        const messages = prev.messages.map(m => m.id === data.messageId ? { ...m, providerStatus: data.status } : m);
+        const messages = prev.messages.map((m) =>
+          m.id === data.messageId ? { ...m, providerStatus: data.status } : m
+        );
         return { ...prev, messages };
       });
     };
 
-    const handleTyping = (data: { userId: string, isTyping: boolean }) => {
+    const handleTyping = (data: { userId: string; isTyping: boolean }) => {
       setTypingUsers((prev) => ({ ...prev, [data.userId]: data.isTyping }));
     };
 
@@ -97,40 +117,61 @@ export default function ConversationPage() {
   }, [socket, isConnected, id]);
 
   const loadConversation = async () => {
-    try { const res = await api.get(`/conversations/${id}`); setConversation(res.data.data); }
-    catch (err) { console.error(err); } finally { setLoading(false); }
+    try {
+      const res = await api.get(`/conversations/${id}`);
+      setConversation(res.data.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || !conversation) return;
+    if (!message.trim() || !conversation || sending) return;
     setSending(true);
-    try { await api.post("/messages", { conversationId: id, text: message }); setMessage(""); loadConversation(); }
-    catch (err) { console.error(err); } setSending(false);
+    setSendError(null);
+    try {
+      await api.post("/messages", { conversationId: id, text: message });
+      setMessage("");
+      await loadConversation();
+    } catch (err: any) {
+      // A failed send used to disappear into console.error and the operator
+      // was left believing the customer received it.
+      setSendError(err?.response?.data?.error?.message || "تعذّر إرسال الرسالة. الرسالة ما وصلت للعميل.");
+    } finally {
+      setSending(false);
+    }
   };
 
   const runAction = async (action: () => Promise<any>) => {
     if (actionBusy) return;
     setActionBusy(true);
-    try { await action(); await loadConversation(); }
-    catch (err) { console.error(err); }
+    setMenuOpen(false);
+    try {
+      await action();
+      await loadConversation();
+    } catch (err) {
+      console.error(err);
+    }
     setActionBusy(false);
   };
 
   const resolveConversation = () => runAction(() => api.post(`/conversations/${id}/resolve`));
   const reopenConversation = () => runAction(() => api.post(`/conversations/${id}/reopen`));
   const blockConversation = () => runAction(() => api.post(`/conversations/${id}/block`));
-  const toggleAiMode = () => runAction(() =>
-    api.patch(`/conversations/${id}`, { mode: conversation?.mode === "AI_AUTOMATIC" ? "HUMAN_ONLY" : "AI_AUTOMATIC" })
-  );
+  const toggleAiMode = () =>
+    runAction(() =>
+      api.patch(`/conversations/${id}`, {
+        mode: conversation?.mode === "AI_AUTOMATIC" ? "HUMAN_ONLY" : "AI_AUTOMATIC",
+      })
+    );
   const assignToMe = () => {
     const membershipId = user?.memberships?.[0]?.id;
     if (!membershipId) return;
     return runAction(() => api.post(`/conversations/${id}/assign`, { membershipId }));
   };
-
-  if (loading) return <div className="flex items-center justify-center h-screen">جاري التحميل...</div>;
-  if (!conversation) return <div className="flex items-center justify-center h-screen">المحادثة غير موجودة</div>;
 
   const handleTyping = (val: string) => {
     setMessage(val);
@@ -139,84 +180,292 @@ export default function ConversationPage() {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       return;
     }
-    
     emitTyping(id, true);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      emitTyping(id, false);
-    }, 2000);
+    typingTimeoutRef.current = setTimeout(() => emitTyping(id, false), 2000);
   };
 
+  if (loading) {
+    return (
+      <div className="p-6">
+        <LoadingRows rows={5} />
+      </div>
+    );
+  }
+
+  if (!conversation) {
+    return (
+      <div className="p-6">
+        <EmptyState
+          icon={MessageSquareOff}
+          title="المحادثة غير موجودة"
+          description="يمكن تكون محذوفة، أو الرابط غير صحيح."
+          action={
+            <Link href="/app/inbox">
+              <Button variant="secondary">رجوع لصندوق الوارد</Button>
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
+  const duty = dutyOf({
+    status: conversation.status,
+    mode: conversation.mode,
+    assigned: !!conversation.assignedMembership,
+  });
+  const closed = conversation.status === "RESOLVED" || conversation.status === "CLOSED";
+  const aiOn = conversation.mode === "AI_AUTOMATIC";
+
+  // Day separators, so a thread spanning weeks does not read as one sitting.
+  let lastDay = "";
+
   return (
-    <div className="h-screen flex flex-col relative">
-      <header className="bg-white border-b border-gray-200 px-6 py-3 shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/app/inbox" className="text-gray-400 hover:text-gray-600"><ArrowRight className="w-5 h-5" /></Link>
-            <div className="w-10 h-10 bg-gold-100 rounded-full flex items-center justify-center text-gold-700 font-bold">{conversation.contact.name?.charAt(0) || "?"}</div>
-            <div>
-              <h2 className="font-bold text-gray-900">{conversation.contact.name || conversation.contact.primaryPhone}</h2>
-              <div className="flex items-center gap-2 text-sm text-gray-500"><Phone className="w-3 h-3" /><span>{conversation.contact.primaryPhone}</span></div>
+    <div className="h-screen flex flex-col">
+      <header className="bg-surface border-b border-line px-4 sm:px-6 py-3 shrink-0">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Link
+              href="/app/inbox"
+              aria-label="رجوع"
+              className="grid place-items-center w-9 h-9 -ms-1 rounded text-faint hover:text-content hover:bg-surface-2 transition-colors shrink-0"
+            >
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+            <span className="w-9 h-9 rounded-full bg-surface-2 text-muted grid place-items-center text-label font-semibold shrink-0">
+              {conversation.contact.name?.charAt(0) || "؟"}
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-[15px] font-semibold text-content truncate leading-tight">
+                {conversation.contact.name || <PhoneValue value={conversation.contact.primaryPhone} />}
+              </h2>
+              <PhoneValue value={conversation.contact.primaryPhone} className="text-micro text-faint" />
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={toggleAiMode} disabled={actionBusy} title="تبديل وضع الرد الآلي"
-              className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 transition disabled:opacity-50 ${conversation.mode === "AI_AUTOMATIC" ? "bg-blue-100 text-blue-700 hover:bg-blue-200" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-              {conversation.mode === "AI_AUTOMATIC" ? <><Bot className="w-3 h-3" /> AI يعمل</> : <><UserCheck className="w-3 h-3" /> بشري فقط</>}
-            </button>
-            <span className={`text-xs px-2 py-1 rounded-full ${conversation.status === "OPEN" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>{conversation.status}</span>
-            <button onClick={assignToMe} disabled={actionBusy} title="تعيين لي"
-              className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition flex items-center gap-1 disabled:opacity-50">
-              <UserCheck className="w-3 h-3" /> تعيين لي
-            </button>
-            {conversation.status === "RESOLVED" || conversation.status === "CLOSED" ? (
-              <button onClick={reopenConversation} disabled={actionBusy} title="إعادة فتح"
-                className="text-xs px-2 py-1 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 transition flex items-center gap-1 disabled:opacity-50">
-                <RotateCcw className="w-3 h-3" /> إعادة فتح
-              </button>
-            ) : (
-              <button onClick={resolveConversation} disabled={actionBusy} title="إنهاء المحادثة"
-                className="text-xs px-2 py-1 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition flex items-center gap-1 disabled:opacity-50">
-                <CheckCircle2 className="w-3 h-3" /> إنهاء
-              </button>
-            )}
-            <button onClick={blockConversation} disabled={actionBusy} title="حظر (سبام)"
-              className="text-xs px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition flex items-center gap-1 disabled:opacity-50">
-              <Ban className="w-3 h-3" /> حظر
-            </button>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant={aiOn ? "secondary" : "primary"}
+              onClick={toggleAiMode}
+              disabled={actionBusy}
+              title={aiOn ? "أوقف الرد الآلي واستلمها" : "سلّمها للموظف الذكي"}
+            >
+              {aiOn ? <UserCheck className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline">{aiOn ? "استلمها" : "سلّمها للذكي"}</span>
+            </Button>
+
+            <div className="relative">
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label="إجراءات أخرى"
+                aria-expanded={menuOpen}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} aria-hidden />
+                  <div className="absolute z-20 mt-1 end-0 w-52 rounded-lg border border-line bg-surface shadow-pop py-1 animate-fade-up">
+                    <MenuItem icon={UserCheck} onClick={assignToMe} disabled={actionBusy}>
+                      عيّنها لي
+                    </MenuItem>
+                    {closed ? (
+                      <MenuItem icon={RotateCcw} onClick={reopenConversation} disabled={actionBusy}>
+                        إعادة فتح
+                      </MenuItem>
+                    ) : (
+                      <MenuItem icon={CheckCircle2} onClick={resolveConversation} disabled={actionBusy}>
+                        إنهاء المحادثة
+                      </MenuItem>
+                    )}
+                    <div className="my-1 border-t border-line" />
+                    <MenuItem icon={Ban} onClick={blockConversation} disabled={actionBusy} danger>
+                      حظر (سبام)
+                    </MenuItem>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-        {conversation.messages.map((msg) => (
-          <div key={msg.id} className={`flex ${msg.direction === "OUTBOUND" ? "justify-start" : "justify-end"}`}>
-            <div className={`max-w-lg px-4 py-3 rounded-2xl ${msg.direction === "OUTBOUND" ? "bg-white border border-gray-200 text-gray-900 rounded-tr-sm" : "bg-gold-500 text-white rounded-tl-sm"}`}>
-              {msg.isAiGenerated && <div className="flex items-center gap-1 mb-1 text-xs opacity-70"><Bot className="w-3 h-3" /> AI</div>}
-              <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
-              <div className="flex items-center gap-1 mt-1 justify-end">
-                <span className="text-xs opacity-60">{new Date(msg.createdAt).toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" })}</span>
-                {msg.direction === "OUTBOUND" && (msg.providerStatus === "READ" ? <CheckCheck className="w-3 h-3 text-blue-500" /> : msg.providerStatus === "DELIVERED" ? <Check className="w-3 h-3 text-gray-400" /> : <Clock className="w-3 h-3 text-gray-400" />)}
-              </div>
+      <DutyBand
+        duty={duty}
+        detail={
+          conversation.assignedMembership
+            ? `مُعيّنة لـ ${conversation.assignedMembership.user.name}`
+            : aiOn
+            ? "الردود تنطلق تلقائياً من قاعدة معرفتك"
+            : "ما فيه أحد مُعيَّن لها"
+        }
+      />
+
+      <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 space-y-3 bg-bg">
+        {conversation.messages.map((msg) => {
+          const day = new Date(msg.createdAt).toDateString();
+          const showDay = day !== lastDay;
+          lastDay = day;
+          const mine = msg.direction === "OUTBOUND";
+          const internal = msg.direction === "INTERNAL";
+
+          return (
+            <div key={msg.id}>
+              {showDay && (
+                <div className="flex items-center gap-3 my-5">
+                  <span className="flex-1 h-px bg-line" />
+                  <span className="text-micro text-faint">
+                    {new Date(msg.createdAt).toLocaleDateString("ar-SA", {
+                      day: "numeric",
+                      month: "long",
+                    })}
+                  </span>
+                  <span className="flex-1 h-px bg-line" />
+                </div>
+              )}
+
+              {internal ? (
+                <div className="flex justify-center">
+                  <div className="max-w-lg rounded border border-dashed border-line bg-surface-2 px-4 py-2 text-micro text-muted">
+                    {msg.text}
+                  </div>
+                </div>
+              ) : (
+                <div className={cn("flex", mine ? "justify-end" : "justify-start")}>
+                  <div
+                    className={cn(
+                      "max-w-[min(560px,80%)] px-4 py-2.5 rounded-lg",
+                      mine
+                        ? msg.isAiGenerated
+                          ? "bg-qano-50 dark:bg-qano-900 border border-qano-200 dark:border-qano-800 text-content rounded-ss-sm"
+                          : "bg-surface border border-line text-content rounded-ss-sm"
+                        : "bg-surface-2 text-content rounded-se-sm"
+                    )}
+                  >
+                    {msg.isAiGenerated && (
+                      <div className="flex items-center gap-1.5 mb-1 text-micro font-semibold text-qano-700 dark:text-qano-300">
+                        <Bot className="w-3 h-3" />
+                        الموظف الذكي
+                      </div>
+                    )}
+                    <p className="text-[14px] leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
+                    <div className="flex items-center gap-1 mt-1 justify-end">
+                      <span className="num text-micro text-faint">
+                        {new Date(msg.createdAt).toLocaleTimeString("ar-SA", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                      {mine &&
+                        (msg.providerStatus === "READ" ? (
+                          <CheckCheck className="w-3.5 h-3.5 text-qano-500" />
+                        ) : msg.providerStatus === "DELIVERED" ? (
+                          <CheckCheck className="w-3.5 h-3.5 text-faint" />
+                        ) : msg.providerStatus === "FAILED" ? (
+                          <AlertCircle className="w-3.5 h-3.5 text-danger-500" />
+                        ) : msg.providerStatus === "SENT" ? (
+                          <Check className="w-3.5 h-3.5 text-faint" />
+                        ) : (
+                          <Clock className="w-3.5 h-3.5 text-faint" />
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        ))}
-        {Object.keys(typingUsers).some(k => typingUsers[k]) && (
-          <div className="flex justify-start">
-            <div className="bg-white border border-gray-200 text-gray-400 px-4 py-2 rounded-2xl rounded-tr-sm text-sm italic">
-              جاري الكتابة...
+          );
+        })}
+
+        {Object.keys(typingUsers).some((k) => typingUsers[k]) && (
+          <div className="flex justify-end">
+            <div className="bg-surface border border-line rounded-lg px-4 py-2.5 flex items-center gap-1">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-ink-400 animate-pulse"
+                  style={{ animationDelay: `${i * 150}ms` }}
+                />
+              ))}
             </div>
           </div>
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={sendMessage} className="bg-white border-t border-gray-200 p-4 shrink-0">
-        <div className="flex items-center gap-3">
-          <input type="text" value={message} onChange={(e) => handleTyping(e.target.value)} placeholder="اكتب رسالتك..." className="flex-1 border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:border-gold-500 text-sm" disabled={sending} />
-          <button type="submit" disabled={sending || !message.trim()} className="bg-gold-500 text-charcoal-900 p-3 rounded-xl hover:bg-gold-400 transition disabled:opacity-50"><Send className="w-5 h-5" /></button>
+      <form onSubmit={sendMessage} className="bg-surface border-t border-line p-4 shrink-0">
+        {sendError && (
+          <p role="alert" className="mb-2 text-micro text-danger-600 dark:text-danger-400">
+            {sendError}
+          </p>
+        )}
+        {aiOn && (
+          <p className="mb-2 text-micro text-muted flex items-center gap-1.5">
+            <Bot className="w-3.5 h-3.5 text-qano-600 dark:text-qano-400 shrink-0" />
+            الموظف الذكي يرد على هذي المحادثة. رسالتك تنرسل مباشرة للعميل.
+          </p>
+        )}
+        <div className="flex items-end gap-2">
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => handleTyping(e.target.value)}
+            placeholder="اكتب رسالتك…"
+            disabled={sending}
+            className={cn(
+              "flex-1 h-11 rounded bg-surface text-content border border-line-strong px-4 text-[14px]",
+              "placeholder:text-faint transition-[border-color,box-shadow] duration-150",
+              "focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20",
+              "disabled:opacity-50"
+            )}
+          />
+          <Button
+            type="submit"
+            size="icon"
+            loading={sending}
+            disabled={sending || !message.trim()}
+            aria-label="إرسال"
+            className="h-11 w-11"
+          >
+            {!sending && <Send className="w-4 h-4" />}
+          </Button>
         </div>
       </form>
     </div>
+  );
+}
+
+function MenuItem({
+  icon: Icon,
+  children,
+  onClick,
+  disabled,
+  danger,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "w-full flex items-center gap-2.5 px-3 py-2 text-label transition-colors text-start",
+        "disabled:opacity-50 disabled:pointer-events-none",
+        danger
+          ? "text-danger-600 dark:text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-600/10"
+          : "text-content hover:bg-surface-2"
+      )}
+    >
+      <Icon className="w-4 h-4 shrink-0" />
+      {children}
+    </button>
   );
 }

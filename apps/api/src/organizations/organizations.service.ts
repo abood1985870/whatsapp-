@@ -1,6 +1,19 @@
-import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from "@nestjs/common";
 import { prisma } from "@qanoai/database";
 import { v4 as uuidv4 } from "uuid";
+
+/** The one global role that confers platform ownership. Never tenant-assignable. */
+const PLATFORM_OWNER_ROLE = "PLATFORM_SUPER_ADMIN";
+
+/** Shared system roles an organization may legitimately give to its own members. */
+const ASSIGNABLE_SYSTEM_ROLES = [
+  "ORGANIZATION_OWNER",
+  "ORGANIZATION_ADMIN",
+  "SUPPORT_MANAGER",
+  "SUPPORT_AGENT",
+  "ANALYST",
+  "READ_ONLY",
+];
 
 @Injectable()
 export class OrganizationsService {
@@ -51,11 +64,41 @@ export class OrganizationsService {
     return invitation;
   }
 
+  /**
+   * Roles this organization is allowed to hand out.
+   *
+   * Global system roles are shared across every tenant, and PLATFORM_SUPER_ADMIN
+   * is one of them. Assigning it to a membership makes that user the platform
+   * owner. Nothing in the previous implementation stopped that: `dto.roleId` was
+   * written straight onto the membership.
+   */
+  private async assertAssignableRole(organizationId: string, roleId: string) {
+    if (!roleId || typeof roleId !== "string") throw new BadRequestException("ROLE_REQUIRED");
+    const role = await prisma.role.findUnique({
+      where: { id: roleId },
+      select: { id: true, name: true, isSystem: true, organizationId: true },
+    });
+    if (!role) throw new BadRequestException("ROLE_NOT_FOUND");
+    if (role.name === PLATFORM_OWNER_ROLE) throw new ForbiddenException("ROLE_NOT_ASSIGNABLE");
+    // Either one of this organization's own roles, or a shared tenant-level
+    // system role. Never a global role outside that set.
+    const isOwnRole = role.organizationId === organizationId;
+    const isAssignableSystemRole =
+      role.isSystem && role.organizationId === null && ASSIGNABLE_SYSTEM_ROLES.includes(role.name);
+    if (!isOwnRole && !isAssignableSystemRole) throw new ForbiddenException("ROLE_NOT_ASSIGNABLE");
+    return role;
+  }
+
   async updateMemberRole(organizationId: string, membershipId: string, dto: any): Promise<any> {
-    return prisma.membership.update({
+    await this.assertAssignableRole(organizationId, dto?.roleId);
+    // updateMany so a membership belonging to another organization is a 0-row
+    // no-op rather than a thrown error that confirms the id exists.
+    const updated = await prisma.membership.updateMany({
       where: { id: membershipId, organizationId },
       data: { roleId: dto.roleId },
     });
+    if (updated.count === 0) throw new BadRequestException("MEMBERSHIP_NOT_FOUND");
+    return prisma.membership.findUnique({ where: { id: membershipId } });
   }
 
   async removeMember(organizationId: string, membershipId: string): Promise<any> {
@@ -65,16 +108,31 @@ export class OrganizationsService {
 
   async listRoles(organizationId: string): Promise<any> {
     return prisma.role.findMany({
-      where: { OR: [{ organizationId }, { isSystem: true }] },
+      where: {
+        OR: [
+          { organizationId },
+          // Shared tenant-level roles only. The platform role was previously
+          // returned here, which handed every organization admin the id needed
+          // to grant themselves platform ownership.
+          { isSystem: true, organizationId: null, name: { in: ASSIGNABLE_SYSTEM_ROLES } },
+        ],
+      },
       include: { permissions: { include: { permission: true } } },
     });
   }
 
   async createRole(organizationId: string, dto: any): Promise<any> {
+    const name = String(dto?.name ?? "").trim();
+    if (!name) throw new BadRequestException("ROLE_NAME_REQUIRED");
+    // A role named PLATFORM_SUPER_ADMIN inside an organization would not itself
+    // grant platform access — assertPlatformOwner requires a global system role —
+    // but allowing the name invites exactly the confusion that bug came from.
+    if (name === PLATFORM_OWNER_ROLE) throw new ForbiddenException("ROLE_NAME_RESERVED");
+
     const role = await prisma.role.create({
       data: {
         organizationId,
-        name: dto.name,
+        name,
         description: dto.description,
       },
     });

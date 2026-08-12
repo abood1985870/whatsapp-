@@ -15,7 +15,8 @@
     "@qanoai/config": "workspace:*",
     "@qanoai/ai": "workspace:*",
     "bullmq": "^5.0.0",
-    "axios": "^1.6.7"
+    "axios": "^1.6.7",
+    "@qanoai/shared": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

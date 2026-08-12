@@ -2,32 +2,52 @@ import { Injectable, Logger } from "@nestjs/common";
 import { prisma } from "@qanoai/database";
 import { queues, emitToOrganization } from "@qanoai/queue";
 import { EvolutionProvider } from "../whatsapp/providers/evolution.provider";
-import { normalizePhone, generateCorrelationId } from "@qanoai/shared";
+import { normalizePhone, generateCorrelationId, redactObject } from "@qanoai/shared";
+import { createHash } from "crypto";
 import {
   findPendingEscalationForSupportPhone,
+  claimPendingSupportEscalation,
   learnFromSupportReply,
   markPendingSupportEscalation,
-  processAgentTurn
+  processAgentTurn,
+  checkConversationTurnLimit
 } from "@qanoai/ai";
+import { SalesConversationService } from "../marketing/sales/sales-conversation.service";
+import { DncService } from "../marketing/dnc/dnc.service";
+import { OutboundGuardService } from "../whatsapp/outbound-guard.service";
 
 @Injectable()
 export class WebhooksService {
   private readonly logger = new Logger(WebhooksService.name);
-  constructor(private readonly evolutionProvider: EvolutionProvider) {}
+  constructor(
+    private readonly evolutionProvider: EvolutionProvider,
+    private readonly salesConversation: SalesConversationService,
+    private readonly dnc: DncService,
+    private readonly outboundGuard: OutboundGuardService
+  ) {}
   
   async processEvolutionWebhook(payload: any, headers: any, query?: any): Promise<any> {
+    // Signature is verified FIRST and unconditionally. There is deliberately no
+    // per-event-type fallback here: a `messages.update` branch used to run even
+    // when the signature check had already failed, which meant one event type
+    // bypassed authentication entirely and wrote across every tenant.
+    if (!this.evolutionProvider.hasValidSignature(payload, headers, query)) {
+      this.logger.warn("Rejected Evolution webhook with invalid or missing signature");
+      return { received: false };
+    }
+
     const event = await this.evolutionProvider.validateWebhook(payload, headers, query);
-    if (!event) { 
-      // It might be a status update that validateWebhook doesn't parse fully, 
-      // but let's try to extract status update from raw payload
+    if (!event) {
+      // Signature already verified above, so this is a shape we do not parse into
+      // a message event. Status updates are the one such shape we still act on.
       if (payload?.event === "messages.update" && payload?.data?.key?.id) {
-        await this.handleMessageUpdate(payload.data);
+        await this.handleMessageUpdate(payload.data, payload?.instance);
         return { received: true, processed: true };
       }
-      this.logger.warn("Invalid webhook payload"); 
-      return { received: false }; 
+      this.logger.warn("Invalid webhook payload");
+      return { received: false };
     }
-    
+
     const connection = await prisma.channelConnection.findFirst({ where: { providerInstanceId: event.instanceId, deletedAt: null } });
     if (!connection) { this.logger.warn(`Connection not found for instance: ${event.instanceId}`); return { received: false }; }
     
@@ -41,11 +61,20 @@ export class WebhooksService {
         channelConnectionId: connection.id, 
         provider: "EVOLUTION", 
         providerEventId: event.message?.id, 
-        eventType: event.eventType, 
-        idempotencyKey, 
-        sanitizedPayload: payload, 
-        payloadHash: generateCorrelationId(), 
-        processingStatus: "RECEIVED" 
+        eventType: event.eventType,
+        idempotencyKey,
+        // Actually sanitized.
+        //
+        // The column is called sanitizedPayload and the raw provider payload
+        // was stored in it verbatim — the message body, the sender's number,
+        // push name, everything — kept indefinitely in a table nobody prunes.
+        sanitizedPayload: redactObject(payload) as any,
+        // A real digest of the raw payload. This was generateCorrelationId(),
+        // which is a timestamp plus random characters — a different value for
+        // identical payloads, so it could not do the one thing a payload hash
+        // is for: telling you whether two deliveries carried the same content.
+        payloadHash: createHash("sha256").update(JSON.stringify(payload ?? {})).digest("hex"),
+        processingStatus: "RECEIVED"
       } 
     });
     
@@ -68,6 +97,21 @@ export class WebhooksService {
     if (state.status === "DISCONNECTED") data.lastDisconnectedAt = new Date();
 
     await prisma.channelConnection.update({ where: { id: connection.id }, data });
+
+    // Guard marketing campaigns when WhatsApp drops: pause any RUNNING
+    // campaign on this connection so we never lose progress or blindly
+    // retry. Normal support behavior is unaffected. Resume is explicit.
+    if (["DISCONNECTED", "LOGGED_OUT", "ERROR"].includes(state.status)) {
+      try {
+        await prisma.campaign.updateMany({
+          where: { organizationId: connection.organizationId, channelConnectionId: connection.id, status: "RUNNING" },
+          data: { status: "PAUSED", pausedAt: new Date() },
+        });
+      } catch (error: any) {
+        this.logger.warn(`Failed to pause campaigns on disconnect: ${error?.message}`);
+      }
+    }
+
     this.safeEmitToOrganization(connection.organizationId, "whatsapp:connection", {
       id: connection.id,
       status: state.status,
@@ -110,6 +154,24 @@ export class WebhooksService {
     conversation = await prisma.conversation.update({ where: { id: conversation.id }, data: { lastMessageAt: new Date(), status: "OPEN" } });
     this.logger.log(`Processed incoming message from ${event.phoneNumber} in conversation ${conversation.id}`);
 
+    // Opt-out, for EVERY conversation.
+    //
+    // This ran only inside the sales path, which requires a salesContext on the
+    // conversation. A customer in an ordinary support thread who wrote
+    // "أوقفوا الرسائل" was never recorded as having opted out, so the next
+    // campaign messaged them anyway — and the person had done exactly what we
+    // asked them to do to make it stop.
+    if (this.dnc.detectOptOutIntent(event.message.text)) {
+      await this.dnc
+        .addNormalized(connection.organizationId, contact.primaryPhone, "customer opt-out", null, "OPT_OUT")
+        .catch((e: any) => this.logger.warn(`Could not record opt-out: ${e?.message}`));
+      await prisma.contact.updateMany({
+        where: { id: contact.id, organizationId: connection.organizationId },
+        data: { consentStatus: "OPTED_OUT", marketingOptOutAt: new Date() },
+      });
+      this.logger.log(`Recorded opt-out for contact ${contact.id}`);
+    }
+
     const contactPayload = { name: contact.name, primaryPhone: contact.primaryPhone, avatarUrl: contact.avatarUrl };
     this.safeEmitToOrganization(connection.organizationId, isNewConversation ? "conversation:new" : "conversation:updated", {
       id: conversation.id,
@@ -130,6 +192,25 @@ export class WebhooksService {
       providerStatus: message.providerStatus,
       isAiGenerated: message.isAiGenerated
     });
+
+    // Marketing sales branch: if this conversation was created by a campaign
+    // (carries salesContext), the AI Sales Agent handles it instead of the
+    // support agent. Fail-open — any error falls through to normal support.
+    if ((conversation.metadata as any)?.salesContext) {
+      try {
+        const handledBySales = await this.salesConversation.handleInbound({
+          organizationId: connection.organizationId,
+          conversation,
+          contact,
+          connection,
+          messageText: event.message.text,
+          inboundMessageId: message.id,
+        });
+        if (handledBySales) return;
+      } catch (error: any) {
+        this.logger.error(`Sales branch failed, falling back to support: ${error?.message}`);
+      }
+    }
 
     if (!["HUMAN_ONLY", "PAUSED"].includes(conversation.mode)) {
       const agent = await prisma.aiAgent.findFirst({ where: { organizationId: connection.organizationId, status: "ACTIVE" } });
@@ -185,6 +266,33 @@ export class WebhooksService {
     });
     if (latestInbound && latestInbound.id !== input.messageId) {
       this.logger.log(`Skipping stale inline AI response for conversation ${input.conversationId}`);
+      return;
+    }
+
+    // Per-conversation ceiling, checked BEFORE the model is called.
+    //
+    // The existing action limit counted AiRun rows, but rows were only written
+    // for REPLY and HANDOFF — every other decision spent a model call and left
+    // no trace. So the exact runaway the cap exists to stop (two automated
+    // systems answering each other, each turn ending in a decision that writes
+    // nothing) could never reach it.
+    if (!(await checkConversationTurnLimit(input.conversationId))) {
+      this.logger.warn(
+        `Conversation ${input.conversationId} hit the AI turn limit - handing to a human instead of replying`
+      );
+      await prisma.conversation.updateMany({
+        where: { id: input.conversationId, organizationId: input.organizationId },
+        data: { status: "WAITING_FOR_AGENT", handoffReason: "AI_TURN_LIMIT_REACHED" }
+      });
+      await this.recordAiRun({
+        organizationId: input.organizationId,
+        agentId: input.agentId,
+        conversationId: input.conversationId,
+        decision: "TURN_LIMIT",
+        content: input.content,
+        latencyMs: 0,
+        errorMessage: "AI_TURN_LIMIT_REACHED"
+      });
       return;
     }
 
@@ -272,17 +380,35 @@ export class WebhooksService {
       });
 
       if (agent?.supportPhoneNumber && updated.connection.providerInstanceId) {
-        await this.evolutionProvider.sendText({
-          instanceId: updated.connection.providerInstanceId,
-          phoneNumber: agent.supportPhoneNumber,
-          text: [
-            "تنبيه دعم فني",
-            `العميل: ${updated.contact.name || "بدون اسم"}`,
-            `رقم العميل: ${updated.contact.primaryPhone}`,
-            `السؤال: ${input.content}`,
-            `المحادثة: ${process.env.APP_URL || "https://qanoai-whatsappsupport.vercel.app"}/app/inbox/${input.conversationId}`
-          ].join("\n")
+        // The alert no longer carries the customer's number or their question.
+        //
+        // supportPhoneNumber is a free-text field an admin types; nothing
+        // verifies that the person holding it works here, and a typo sends a
+        // stranger a named customer's phone number and whatever they just
+        // asked — which may be an order number, an address, or a complaint.
+        // The link requires a login, so the details stay behind authentication
+        // where they belong.
+        const alertGate = await this.outboundGuard.check({
+          organizationId: input.organizationId,
+          toPhone: agent.supportPhoneNumber,
+          kind: "SYSTEM_NOTICE",
         });
+
+        if (alertGate.allowed) {
+          await this.evolutionProvider
+            .sendText({
+              instanceId: updated.connection.providerInstanceId,
+              phoneNumber: agent.supportPhoneNumber,
+              text: [
+                "تنبيه: محادثة تنتظر ردّك",
+                "فيه عميل يحتاج موظف بشري.",
+                `افتح المحادثة: ${process.env.APP_URL || "https://qanoai-whatsappsupport.vercel.app"}/app/inbox/${input.conversationId}`,
+              ].join("\n"),
+            })
+            .catch((e: any) => this.logger.warn(`Support alert failed: ${e?.message}`));
+        } else {
+          this.logger.warn(`Support alert blocked: ${alertGate.reason}`);
+        }
       }
 
       this.safeEmitToOrganization(input.organizationId, "conversation:updated", {
@@ -294,7 +420,56 @@ export class WebhooksService {
         lastMessageAt: updated.lastMessageAt
       });
       this.safeEmitToOrganization(input.organizationId, "message:new", this.messagePayload(handoffMessage));
+      return;
     }
+
+    // Any other decision still consumed a model call. Recording it is what makes
+    // the turn cap and the per-organization cost total mean anything.
+    await this.recordAiRun({
+      organizationId: input.organizationId,
+      agentId: input.agentId,
+      conversationId: input.conversationId,
+      decision: response.decision,
+      content: input.content,
+      latencyMs,
+      confidence: response.confidence,
+      errorMessage: response.reason,
+      tokenUsage: response.tokenUsage,
+      costUsd: response.costUsd
+    });
+  }
+
+  /** One place that writes an AiRun row, so no decision path can forget to. */
+  private async recordAiRun(input: {
+    organizationId: string;
+    agentId: string;
+    conversationId: string;
+    decision: string;
+    content: string;
+    latencyMs: number;
+    confidence?: number;
+    errorMessage?: string;
+    tokenUsage?: number;
+    costUsd?: number;
+  }): Promise<void> {
+    await prisma.aiRun
+      .create({
+        data: {
+          organizationId: input.organizationId,
+          agentId: input.agentId,
+          conversationId: input.conversationId,
+          status: "COMPLETED",
+          decision: input.decision,
+          confidence: input.confidence ?? 0,
+          input: input.content?.slice(0, 4000),
+          errorMessage: input.errorMessage,
+          tokenUsage: input.tokenUsage !== undefined ? { total: input.tokenUsage } : undefined,
+          costUsd: input.costUsd,
+          latencyMs: input.latencyMs,
+          completedAt: new Date()
+        }
+      })
+      .catch((e: any) => this.logger.warn(`Could not record AI run: ${e?.message}`));
   }
 
   private async createAndSendAiMessage(input: { organizationId: string; conversation: any; text: string }) {
@@ -365,6 +540,14 @@ export class WebhooksService {
     const answer = String(event.message?.text || "").trim();
     if (!answer) return true;
 
+    // Claim the escalation BEFORE forwarding. If it has already been answered,
+    // this message is just the support person using their own phone normally —
+    // it must not be relayed to the customer. Claiming first also means a
+    // failure below cannot leave the escalation open for the next message to
+    // pick up.
+    const claimed = await claimPendingSupportEscalation(supportConversation.id);
+    if (!claimed) return false;
+
     let providerStatus = "PENDING";
     let providerMessageId: string | undefined;
     try {
@@ -401,7 +584,8 @@ export class WebhooksService {
       conversationId: supportConversation.id,
       answer,
       sourceMessageId: message.id,
-      source: "WHATSAPP_SUPPORT_REPLY"
+      source: "WHATSAPP_SUPPORT_REPLY",
+      pending: claimed
     });
 
     const updated = await prisma.conversation.update({
@@ -436,22 +620,40 @@ export class WebhooksService {
     return true;
   }
 
-  private async handleMessageUpdate(data: any): Promise<any> {
+  private async handleMessageUpdate(data: any, instanceId?: string): Promise<any> {
     // Example Evolution API payload structure for message status updates
     const messageId = data?.key?.id;
     const update = data?.update;
     let status = "SENT";
-    
+
     if (update?.status === 3) status = "DELIVERED";
     if (update?.status === 4) status = "READ";
     if (update?.error) status = "FAILED";
 
+    // Resolve the owning organization from the instance the event arrived on, so
+    // a status update can never rewrite rows belonging to another tenant that
+    // happens to share a provider message id.
+    const connection = instanceId
+      ? await prisma.channelConnection.findFirst({
+          where: { providerInstanceId: instanceId, deletedAt: null },
+          select: { organizationId: true },
+        })
+      : null;
+    if (!connection) {
+      this.logger.warn(`Ignoring message status update for unknown instance: ${String(instanceId).slice(0, 64)}`);
+      return { received: true, processed: false };
+    }
+    const organizationId = connection.organizationId;
+
     if (messageId) {
-      const matches = await prisma.message.findMany({ where: { providerMessageId: messageId }, select: { id: true, organizationId: true } });
+      const matches = await prisma.message.findMany({ where: { providerMessageId: messageId, organizationId }, select: { id: true, organizationId: true } });
       if (matches.length) {
         await prisma.message.updateMany({
-          where: { providerMessageId: messageId },
-          data: { providerStatus: status, providerErrorMessage: update?.error || null }
+          where: { providerMessageId: messageId, organizationId },
+          data: {
+            providerStatus: status,
+            providerErrorMessage: update?.error ? String(update.error).slice(0, 500) : null
+          }
         });
         for (const m of matches) {
           this.safeEmitToOrganization(m.organizationId, "message:status", { messageId: m.id, status });

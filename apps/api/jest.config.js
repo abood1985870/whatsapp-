@@ -9,8 +9,9 @@ module.exports = {
   rootDir: '.',
   testRegex: '.*\\.spec\\.ts$',
   transform: {
-    '^.+\\.(t|j)s$': 'ts-jest',
+    '^.+\\.ts$': 'ts-jest',
   },
+  transformIgnorePatterns: ['/node_modules/', '/dist/'],
   collectCoverageFrom: [
     '**/*.(t|j)s',
     '!**/node_modules/**',

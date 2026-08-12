@@ -1,0 +1,776 @@
+{
+  "takenAt": "2026-08-11T17:52:28.759Z",
+  "permissions": [
+    {
+      "id": "cmslyywfp000ixyu0mbsk9xev",
+      "code": "ai.configure",
+      "name": "Configure AI agents",
+      "description": null,
+      "category": "ai",
+      "createdAt": "2026-08-09T15:40:40.501Z"
+    },
+    {
+      "id": "cmslyywqp000jxyu09j8nl4zo",
+      "code": "ai.publish",
+      "name": "Publish AI agents",
+      "description": null,
+      "category": "ai",
+      "createdAt": "2026-08-09T15:40:40.897Z"
+    },
+    {
+      "id": "cmslyyw4e000hxyu0og6up1p9",
+      "code": "ai.read",
+      "name": "Read AI agents",
+      "description": null,
+      "category": "ai",
+      "createdAt": "2026-08-09T15:40:40.094Z"
+    },
+    {
+      "id": "cmslyyxyw000nxyu08upiwhiw",
+      "code": "analytics.read",
+      "name": "Read analytics",
+      "description": null,
+      "category": "analytics",
+      "createdAt": "2026-08-09T15:40:42.488Z"
+    },
+    {
+      "id": "cmslyyybx000oxyu0yd0j0f9z",
+      "code": "audit.read",
+      "name": "Read audit",
+      "description": null,
+      "category": "audit",
+      "createdAt": "2026-08-09T15:40:42.957Z"
+    },
+    {
+      "id": "cmslyytph000axyu0u8oxhen4",
+      "code": "contacts.create",
+      "name": "Create contacts",
+      "description": null,
+      "category": "contacts",
+      "createdAt": "2026-08-09T15:40:36.965Z"
+    },
+    {
+      "id": "cmslyyte60009xyu02suwv26e",
+      "code": "contacts.read",
+      "name": "Read contacts",
+      "description": null,
+      "category": "contacts",
+      "createdAt": "2026-08-09T15:40:36.559Z"
+    },
+    {
+      "id": "cmslyyu0k000bxyu0yl3bl5ud",
+      "code": "contacts.update",
+      "name": "Update contacts",
+      "description": null,
+      "category": "contacts",
+      "createdAt": "2026-08-09T15:40:37.364Z"
+    },
+    {
+      "id": "cmslyyv03000exyu0xwvf44ua",
+      "code": "conversations.assign",
+      "name": "Assign conversations",
+      "description": null,
+      "category": "conversations",
+      "createdAt": "2026-08-09T15:40:38.643Z"
+    },
+    {
+      "id": "cmslyyvdk000fxyu0ks1j7gz6",
+      "code": "conversations.close",
+      "name": "Close conversations",
+      "description": null,
+      "category": "conversations",
+      "createdAt": "2026-08-09T15:40:39.128Z"
+    },
+    {
+      "id": "cmslyyuds000cxyu0bm3pdblt",
+      "code": "conversations.read",
+      "name": "Read conversations",
+      "description": null,
+      "category": "conversations",
+      "createdAt": "2026-08-09T15:40:37.840Z"
+    },
+    {
+      "id": "cmslyyuou000dxyu084m4vjup",
+      "code": "conversations.reply",
+      "name": "Reply conversations",
+      "description": null,
+      "category": "conversations",
+      "createdAt": "2026-08-09T15:40:38.238Z"
+    },
+    {
+      "id": "cmslyyvqr000gxyu094eip7jr",
+      "code": "conversations.update",
+      "name": "Update conversations",
+      "description": null,
+      "category": "conversations",
+      "createdAt": "2026-08-09T15:40:39.604Z"
+    },
+    {
+      "id": "cmslyyx23000kxyu0tgfdtnkj",
+      "code": "knowledge.read",
+      "name": "Read knowledge",
+      "description": null,
+      "category": "knowledge",
+      "createdAt": "2026-08-09T15:40:41.307Z"
+    },
+    {
+      "id": "cmslyyxnu000mxyu0l0lprii3",
+      "code": "knowledge.update",
+      "name": "Update knowledge",
+      "description": null,
+      "category": "knowledge",
+      "createdAt": "2026-08-09T15:40:42.090Z"
+    },
+    {
+      "id": "cmslyyxcw000lxyu04dtdl9to",
+      "code": "knowledge.upload",
+      "name": "Upload knowledge",
+      "description": null,
+      "category": "knowledge",
+      "createdAt": "2026-08-09T15:40:41.697Z"
+    },
+    {
+      "id": "cmsoistt00007bcycnwjsqns1",
+      "code": "marketing.analytics.read",
+      "name": "قراءة تحليلات التسويق",
+      "description": null,
+      "category": "marketing",
+      "createdAt": "2026-08-11T10:31:21.829Z"
+    },
+    {
+      "id": "cmsoisru60003bcycwpl9ufz2",
+      "code": "marketing.campaigns.manage",
+      "name": "إدارة الحملات",
+      "description": null,
+      "category": "marketing",
+      "createdAt": "2026-08-11T10:31:19.279Z"
+    },
+    {
+      "id": "cmsoissbs0004bcyc8cwbtt4n",
+      "code": "marketing.campaigns.start",
+      "name": "تشغيل الحملات",
+      "description": null,
+      "category": "marketing",
+      "createdAt": "2026-08-11T10:31:19.913Z"
+    },
+    {
+      "id": "cmsoisss50005bcyc71tl4bht",
+      "code": "marketing.dnc.manage",
+      "name": "إدارة قائمة عدم التواصل",
+      "description": null,
+      "category": "marketing",
+      "createdAt": "2026-08-11T10:31:20.502Z"
+    },
+    {
+      "id": "cmsoisrdr0002bcycfvu2eubu",
+      "code": "marketing.leads.manage",
+      "name": "إدارة العملاء المحتملين",
+      "description": null,
+      "category": "marketing",
+      "createdAt": "2026-08-11T10:31:18.688Z"
+    },
+    {
+      "id": "cmsoisqxc0001bcyc4p1ilth8",
+      "code": "marketing.products.manage",
+      "name": "إدارة البرامج",
+      "description": null,
+      "category": "marketing",
+      "createdAt": "2026-08-11T10:31:18.096Z"
+    },
+    {
+      "id": "cmsoisq8c0000bcyc1jzr45ff",
+      "code": "marketing.read",
+      "name": "قراءة التسويق",
+      "description": null,
+      "category": "marketing",
+      "createdAt": "2026-08-11T10:31:17.196Z"
+    },
+    {
+      "id": "cmsoist9f0006bcycyrwbnrp7",
+      "code": "marketing.settings.manage",
+      "name": "إدارة إعدادات التسويق",
+      "description": null,
+      "category": "marketing",
+      "createdAt": "2026-08-11T10:31:21.124Z"
+    },
+    {
+      "id": "cmslyyro10004xyu0l0qlfpgi",
+      "code": "members.invite",
+      "name": "Invite members",
+      "description": null,
+      "category": "members",
+      "createdAt": "2026-08-09T15:40:34.322Z"
+    },
+    {
+      "id": "cmslyyrap0003xyu0cp69tmlp",
+      "code": "members.read",
+      "name": "Read members",
+      "description": null,
+      "category": "members",
+      "createdAt": "2026-08-09T15:40:33.841Z"
+    },
+    {
+      "id": "cmslyz02o000txyu0r3wivqk0",
+      "code": "message.broadcast",
+      "name": "Broadcast messages",
+      "description": null,
+      "category": "messages",
+      "createdAt": "2026-08-09T15:40:45.216Z"
+    },
+    {
+      "id": "cmslyyzox000sxyu0su9glirh",
+      "code": "message.read",
+      "name": "Read message",
+      "description": null,
+      "category": "messages",
+      "createdAt": "2026-08-09T15:40:44.722Z"
+    },
+    {
+      "id": "cmslyyz9u000rxyu037g2gcr7",
+      "code": "message.send",
+      "name": "Send message",
+      "description": null,
+      "category": "messages",
+      "createdAt": "2026-08-09T15:40:44.178Z"
+    },
+    {
+      "id": "cmslyyqxw0002xyu0i2dlhlep",
+      "code": "organization.billing.manage",
+      "name": "Manage billing",
+      "description": null,
+      "category": "organization",
+      "createdAt": "2026-08-09T15:40:33.380Z"
+    },
+    {
+      "id": "cmslyypvo0000xyu07r397bkn",
+      "code": "organization.read",
+      "name": "Read organization",
+      "description": null,
+      "category": "organization",
+      "createdAt": "2026-08-09T15:40:32.004Z"
+    },
+    {
+      "id": "cmslyyqmk0001xyu06ywuusws",
+      "code": "organization.update",
+      "name": "Update organization",
+      "description": null,
+      "category": "organization",
+      "createdAt": "2026-08-09T15:40:32.972Z"
+    },
+    {
+      "id": "cmslyyyn6000pxyu0th8jg1no",
+      "code": "settings.manage",
+      "name": "Manage settings",
+      "description": null,
+      "category": "settings",
+      "createdAt": "2026-08-09T15:40:43.362Z"
+    },
+    {
+      "id": "cmslyyyyl000qxyu0kcbhsfk9",
+      "code": "settings.update",
+      "name": "Update settings",
+      "description": null,
+      "category": "settings",
+      "createdAt": "2026-08-09T15:40:43.774Z"
+    },
+    {
+      "id": "cmsolmb7b0001fkzrpjv95xpb",
+      "code": "voice.agent.manage",
+      "name": "إدارة الموظف الصوتي",
+      "description": null,
+      "category": "voice",
+      "createdAt": "2026-08-11T11:50:16.631Z"
+    },
+    {
+      "id": "cmsolmdt40006fkzrrnbqe16f",
+      "code": "voice.analytics.read",
+      "name": "قراءة تحليلات المكالمات",
+      "description": null,
+      "category": "voice",
+      "createdAt": "2026-08-11T11:50:20.009Z"
+    },
+    {
+      "id": "cmsolmcie0004fkzr506vqdle",
+      "code": "voice.calls.read",
+      "name": "قراءة المكالمات",
+      "description": null,
+      "category": "voice",
+      "createdAt": "2026-08-11T11:50:18.326Z"
+    },
+    {
+      "id": "cmsolme8p0007fkzromd2ztho",
+      "code": "voice.diagnostics.run",
+      "name": "تشغيل التشخيص الصوتي",
+      "description": null,
+      "category": "voice",
+      "createdAt": "2026-08-11T11:50:20.569Z"
+    },
+    {
+      "id": "cmsolmbn20002fkzrlzk15rpb",
+      "code": "voice.numbers.manage",
+      "name": "إدارة أرقام الاتصال",
+      "description": null,
+      "category": "voice",
+      "createdAt": "2026-08-11T11:50:17.198Z"
+    },
+    {
+      "id": "cmsolmajr0000fkzr28ge32gf",
+      "code": "voice.read",
+      "name": "قراءة الموظف الصوتي",
+      "description": null,
+      "category": "voice",
+      "createdAt": "2026-08-11T11:50:15.783Z"
+    },
+    {
+      "id": "cmsolmddh0005fkzr5a89tr25",
+      "code": "voice.recordings.access",
+      "name": "الوصول للتسجيلات",
+      "description": null,
+      "category": "voice",
+      "createdAt": "2026-08-11T11:50:19.445Z"
+    },
+    {
+      "id": "cmsolmc2t0003fkzrfpwh29ar",
+      "code": "voice.settings.manage",
+      "name": "إدارة إعدادات الصوت",
+      "description": null,
+      "category": "voice",
+      "createdAt": "2026-08-11T11:50:17.766Z"
+    },
+    {
+      "id": "cmslyysa90006xyu0h0kjpbyr",
+      "code": "whatsapp.connect",
+      "name": "Connect WhatsApp",
+      "description": null,
+      "category": "whatsapp",
+      "createdAt": "2026-08-09T15:40:35.121Z"
+    },
+    {
+      "id": "cmslyyslh0007xyu08zedfnvf",
+      "code": "whatsapp.disconnect",
+      "name": "Disconnect WhatsApp",
+      "description": null,
+      "category": "whatsapp",
+      "createdAt": "2026-08-09T15:40:35.526Z"
+    },
+    {
+      "id": "cmslyyrz00005xyu0kpvsegcx",
+      "code": "whatsapp.read",
+      "name": "Read WhatsApp",
+      "description": null,
+      "category": "whatsapp",
+      "createdAt": "2026-08-09T15:40:34.716Z"
+    },
+    {
+      "id": "cmslyysws0008xyu0k9qgolcb",
+      "code": "whatsapp.update",
+      "name": "Update WhatsApp",
+      "description": null,
+      "category": "whatsapp",
+      "createdAt": "2026-08-09T15:40:35.933Z"
+    }
+  ],
+  "roles": [
+    {
+      "id": "cmslyz126000uxyu0xzwdu1ul",
+      "name": "PLATFORM_SUPER_ADMIN",
+      "description": null,
+      "isSystem": true,
+      "organizationId": null,
+      "createdAt": "2026-08-09T15:40:46.494Z",
+      "updatedAt": "2026-08-09T15:40:46.494Z"
+    },
+    {
+      "id": "cmslyz2j6000vxyu0bhmn4wlh",
+      "name": "SUPPORT_MANAGER",
+      "description": null,
+      "isSystem": true,
+      "organizationId": null,
+      "createdAt": "2026-08-09T15:40:48.402Z",
+      "updatedAt": "2026-08-09T15:40:48.402Z"
+    }
+  ],
+  "grants": [
+    {
+      "id": "cmslyz49d000xxyu0eudulkac",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyypvo0000xyu07r397bkn"
+    },
+    {
+      "id": "cmslyz71f000zxyu0atstf8qb",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyqmk0001xyu06ywuusws"
+    },
+    {
+      "id": "cmslyz8pf0011xyu09nrkbznf",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyqxw0002xyu0i2dlhlep"
+    },
+    {
+      "id": "cmslyza9a0013xyu0yhg1d0on",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyrap0003xyu0cp69tmlp"
+    },
+    {
+      "id": "cmslyzbxg0015xyu06grr31vt",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyro10004xyu0l0qlfpgi"
+    },
+    {
+      "id": "cmslyzdnd0017xyu086rdzfej",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyrz00005xyu0kpvsegcx"
+    },
+    {
+      "id": "cmslyzfqo0019xyu0cwsqnemr",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyysa90006xyu0h0kjpbyr"
+    },
+    {
+      "id": "cmslyzhgy001bxyu04vn5x3jj",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyslh0007xyu08zedfnvf"
+    },
+    {
+      "id": "cmslyzj75001dxyu05y7qdrmw",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyysws0008xyu0k9qgolcb"
+    },
+    {
+      "id": "cmslyzkv1001fxyu01nh6i9k7",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyte60009xyu02suwv26e"
+    },
+    {
+      "id": "cmslyzmf5001hxyu0elt358g4",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyytph000axyu0u8oxhen4"
+    },
+    {
+      "id": "cmslyzny5001jxyu0aw9ddbl4",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyu0k000bxyu0yl3bl5ud"
+    },
+    {
+      "id": "cmslyzpm9001lxyu0t28gjgv2",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyuds000cxyu0bm3pdblt"
+    },
+    {
+      "id": "cmslyzr65001nxyu006gqrqje",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyuou000dxyu084m4vjup"
+    },
+    {
+      "id": "cmslyztg0001pxyu04sn6l07l",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyv03000exyu0xwvf44ua"
+    },
+    {
+      "id": "cmslyzv6e001rxyu0mokw4wmr",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyvdk000fxyu0ks1j7gz6"
+    },
+    {
+      "id": "cmslyzws1001txyu0ytswfn7v",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyvqr000gxyu094eip7jr"
+    },
+    {
+      "id": "cmslyzydo001vxyu0b7or5xem",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyw4e000hxyu0og6up1p9"
+    },
+    {
+      "id": "cmslyzzzh001xxyu0j5ptupif",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyywfp000ixyu0mbsk9xev"
+    },
+    {
+      "id": "cmslz01pr001zxyu0q9hyx0w3",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyywqp000jxyu09j8nl4zo"
+    },
+    {
+      "id": "cmslz03fw0021xyu0w733p4bm",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyx23000kxyu0tgfdtnkj"
+    },
+    {
+      "id": "cmslz05f30023xyu0h3kez8o3",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyxcw000lxyu04dtdl9to"
+    },
+    {
+      "id": "cmslz072z0025xyu0z6ur27qi",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyxnu000mxyu0l0lprii3"
+    },
+    {
+      "id": "cmslz08p80027xyu0ekn2rb8f",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyxyw000nxyu08upiwhiw"
+    },
+    {
+      "id": "cmslz0acx0029xyu0bbtqavzz",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyybx000oxyu0yd0j0f9z"
+    },
+    {
+      "id": "cmslz0c0o002bxyu038ojk73q",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyyn6000pxyu0th8jg1no"
+    },
+    {
+      "id": "cmslz0dkg002dxyu0z3u5n84i",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyyyl000qxyu0kcbhsfk9"
+    },
+    {
+      "id": "cmslz0f69002fxyu08gbcfq5v",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyz9u000rxyu037g2gcr7"
+    },
+    {
+      "id": "cmslz0gyp002hxyu05bl4cxv6",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyyzox000sxyu0su9glirh"
+    },
+    {
+      "id": "cmslz0ism002jxyu0uu3zofnz",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmslyz02o000txyu0r3wivqk0"
+    },
+    {
+      "id": "cmslz0kz4002lxyu0rht68g0d",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyypvo0000xyu07r397bkn"
+    },
+    {
+      "id": "cmslz0mre002nxyu0lvinl3bz",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyqmk0001xyu06ywuusws"
+    },
+    {
+      "id": "cmslz0obg002pxyu0ixf5x0zu",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyrap0003xyu0cp69tmlp"
+    },
+    {
+      "id": "cmslz0q3b002rxyu0q6csefrr",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyro10004xyu0l0qlfpgi"
+    },
+    {
+      "id": "cmslz0rmy002txyu0yha4vih7",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyrz00005xyu0kpvsegcx"
+    },
+    {
+      "id": "cmslz0tap002vxyu0aup3jyrf",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyysa90006xyu0h0kjpbyr"
+    },
+    {
+      "id": "cmslz0v8c002xxyu0cckergj9",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyslh0007xyu08zedfnvf"
+    },
+    {
+      "id": "cmslz0wvj002zxyu0hagsuoo6",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyysws0008xyu0k9qgolcb"
+    },
+    {
+      "id": "cmslz0yi90031xyu07wl46e8a",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyte60009xyu02suwv26e"
+    },
+    {
+      "id": "cmslz10640033xyu03v6io7hs",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyytph000axyu0u8oxhen4"
+    },
+    {
+      "id": "cmslz11rp0035xyu0wb5wofuk",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyu0k000bxyu0yl3bl5ud"
+    },
+    {
+      "id": "cmslz13hs0037xyu0gmfc7sf5",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyuds000cxyu0bm3pdblt"
+    },
+    {
+      "id": "cmslz153v0039xyu0r0epr9wj",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyuou000dxyu084m4vjup"
+    },
+    {
+      "id": "cmslz16pi003bxyu0rx875txe",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyv03000exyu0xwvf44ua"
+    },
+    {
+      "id": "cmslz18of003dxyu02evyuiad",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyvdk000fxyu0ks1j7gz6"
+    },
+    {
+      "id": "cmslz1acz003fxyu0o6cq3zu0",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyvqr000gxyu094eip7jr"
+    },
+    {
+      "id": "cmslz1c0t003hxyu0v5oz39xd",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyw4e000hxyu0og6up1p9"
+    },
+    {
+      "id": "cmslz1dqn003jxyu0g6pprgsd",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyywfp000ixyu0mbsk9xev"
+    },
+    {
+      "id": "cmslz1fah003lxyu0kn4nty17",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyywqp000jxyu09j8nl4zo"
+    },
+    {
+      "id": "cmslz1gtc003nxyu0o8lobg80",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyx23000kxyu0tgfdtnkj"
+    },
+    {
+      "id": "cmslz1ifg003pxyu0hcj4ifk7",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyxcw000lxyu04dtdl9to"
+    },
+    {
+      "id": "cmslz1k0n003rxyu0bh5ff153",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyxnu000mxyu0l0lprii3"
+    },
+    {
+      "id": "cmslz1ly1003txyu019xdjstu",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyxyw000nxyu08upiwhiw"
+    },
+    {
+      "id": "cmslz1nm7003vxyu0d168hxkd",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyyn6000pxyu0th8jg1no"
+    },
+    {
+      "id": "cmslz1p7z003xxyu0n2zi7mq5",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyz9u000rxyu037g2gcr7"
+    },
+    {
+      "id": "cmslz1qr4003zxyu0g8udg6ie",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyyzox000sxyu0su9glirh"
+    },
+    {
+      "id": "cmslz1s9k0041xyu0zg8r4zbu",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "permissionId": "cmslyz02o000txyu0r3wivqk0"
+    },
+    {
+      "id": "cmsoisvy10008bcycrxkkd5ta",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsoisq8c0000bcyc1jzr45ff"
+    },
+    {
+      "id": "cmsoisvy10009bcycyxzqohlc",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsoisqxc0001bcyc4p1ilth8"
+    },
+    {
+      "id": "cmsoisvy1000abcyc0tkbrznc",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsoisrdr0002bcycfvu2eubu"
+    },
+    {
+      "id": "cmsoisvy1000bbcycdgoi97j8",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsoisru60003bcycwpl9ufz2"
+    },
+    {
+      "id": "cmsoisvy1000cbcycqjfte2m2",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsoissbs0004bcyc8cwbtt4n"
+    },
+    {
+      "id": "cmsoisvy1000dbcycn6xsiqma",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsoisss50005bcyc71tl4bht"
+    },
+    {
+      "id": "cmsoisvy1000ebcycgnaa2mtj",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsoist9f0006bcycyrwbnrp7"
+    },
+    {
+      "id": "cmsoisvy1000fbcyc7g3lcviz",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsoistt00007bcycnwjsqns1"
+    },
+    {
+      "id": "cmsolmgnh0008fkzrgpz25fud",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsolmajr0000fkzr28ge32gf"
+    },
+    {
+      "id": "cmsolmgni0009fkzrv9iz2o3m",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsolmb7b0001fkzrpjv95xpb"
+    },
+    {
+      "id": "cmsolmgni000afkzrhbk9nakk",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsolmbn20002fkzrlzk15rpb"
+    },
+    {
+      "id": "cmsolmgni000bfkzrbjqmagjg",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsolmc2t0003fkzrfpwh29ar"
+    },
+    {
+      "id": "cmsolmgni000cfkzrd5qgj91l",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsolmcie0004fkzr506vqdle"
+    },
+    {
+      "id": "cmsolmgni000dfkzrfe5whqyx",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsolmddh0005fkzr5a89tr25"
+    },
+    {
+      "id": "cmsolmgni000efkzrqcvt7d8e",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsolmdt40006fkzrrnbqe16f"
+    },
+    {
+      "id": "cmsolmgni000ffkzru8bsidd5",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "permissionId": "cmsolme8p0007fkzromd2ztho"
+    }
+  ],
+  "memberships": [
+    {
+      "id": "cmslz1yd00047xyu0wkdeuyx7",
+      "userId": "cmslz1vst0044xyu0zwdfvt9l",
+      "organizationId": "cmslz1tt00042xyu0va4dct72",
+      "roleId": "cmslyz126000uxyu0xzwdu1ul",
+      "status": "ACTIVE"
+    },
+    {
+      "id": "cmslz1zai0049xyu09hgnogeh",
+      "userId": "cmslz1wyt0045xyu0hdljhymn",
+      "organizationId": "cmslz1ugw0043xyu0da6f0npx",
+      "roleId": "cmslyz2j6000vxyu0bhmn4wlh",
+      "status": "ACTIVE"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, ForbiddenException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { PERMISSIONS_KEY } from "../decorators/require-permission.decorator";
+import { resolveMembership } from "./resolve-membership";
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
@@ -17,28 +18,11 @@ export class PermissionGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    let membership = request.membership;
 
-    // OrganizationGuard populates request.membership, but most routes use
-    // PermissionGuard alone (or carry no organizationId at all), so resolve
-    // the membership here from the authenticated user when it's missing.
-    // Falling back to the user's first active membership when no orgId is in
-    // the request means multi-org users are checked against their primary
-    // org on resource-scoped routes; per-resource tenant isolation must be
-    // enforced by organizationId scoping in the services themselves.
-    if (!membership) {
-      const user = request.user;
-      const orgId = request.params?.organizationId || request.body?.organizationId || request.query?.organizationId;
-      const activeMemberships = (user?.memberships || []).filter((m: any) => m.status === "ACTIVE");
-      membership = orgId
-        ? activeMemberships.find((m: any) => m.organizationId === orgId)
-        : activeMemberships[0];
-      if (membership) request.membership = membership;
-    }
-
-    if (!membership) {
-      throw new ForbiddenException("PERMISSION_DENIED");
-    }
+    // Throws rather than falling back to the caller's first organization.
+    // See resolve-membership.ts for why that fallback was the tenant boundary's
+    // main hole.
+    const membership = resolveMembership(request);
 
     const userPermissions = membership.role?.permissions?.map((p: any) => p.permission.code) || [];
     const hasPermission = requiredPermissions.every((perm) => userPermissions.includes(perm));

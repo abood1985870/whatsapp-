@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { useAuth } from "./useAuth";
+import { getActiveOrganization } from "@/lib/api";
 
 const REALTIME_URL = process.env.NEXT_PUBLIC_REALTIME_URL || "http://localhost:3002";
 
@@ -17,7 +18,10 @@ export function useSocket(options?: { token?: string | null; enabled?: boolean }
     if (!token || !enabled) return;
 
     const socket = io(REALTIME_URL, {
-      auth: { token },
+      // The realtime handshake refuses to guess an organization for a
+      // multi-org user, exactly like the HTTP API. Sending it here is what
+      // keeps live updates working for them.
+      auth: { token, organizationId: getActiveOrganization() },
       reconnectionAttempts: 3,
       timeout: 5000,
       transports: ["websocket"],

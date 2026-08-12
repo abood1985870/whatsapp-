@@ -29,9 +29,12 @@ interface TokenPayload {
 
 // 1. Authentication Middleware
 io.use(async (socket, next) => {
-  const token = socket.handshake.auth.token || socket.handshake.query.token;
-  
-  if (!token) {
+  // auth.token ONLY. The query-string branch put a bearer token in the URL,
+  // where it lands in proxy logs, browser history and Referer headers. The web
+  // client already sends it via `auth`, so nothing needed the query form.
+  const token = socket.handshake.auth?.token;
+
+  if (!token || typeof token !== "string") {
     return next(new Error("AUTHENTICATION_REQUIRED"));
   }
 
@@ -40,19 +43,47 @@ io.use(async (socket, next) => {
     const userId = decoded.userId || decoded.sub;
     if (!userId) return next(new Error("INVALID_TOKEN"));
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
+    // A token minted for the 2FA step must not open a socket.
+    if ((decoded as any).typ === "mfa_pending") return next(new Error("MFA_REQUIRED"));
+
+    // The session row is what makes a token revocable. Without this a socket
+    // opened before logout kept streaming that organization's messages for the
+    // token's full lifetime.
+    const jti = (decoded as any).jti;
+    if (!jti) return next(new Error("INVALID_TOKEN"));
+    const session = await prisma.session.findUnique({
+      where: { token: jti },
+      select: { userId: true, expiresAt: true },
+    });
+    if (!session || session.userId !== userId || session.expiresAt <= new Date()) {
+      return next(new Error("SESSION_REVOKED"));
+    }
+
+    const user = await prisma.user.findFirst({
+      // deletedAt: null — a removed user could still hold an open socket.
+      where: { id: userId, deletedAt: null },
       include: { memberships: { include: { role: true } } },
     });
 
     if (!user || user.status !== "ACTIVE") return next(new Error("USER_INACTIVE"));
 
     const activeMemberships = user.memberships.filter((membership: any) => membership.status === "ACTIVE");
-    const membership = decoded.organizationId
-      ? activeMemberships.find((item: any) => item.organizationId === decoded.organizationId)
-      : activeMemberships[0];
 
-    if (!membership) return next(new Error("ORGANIZATION_ACCESS_DENIED"));
+    // An explicit organization is required when the user belongs to more than
+    // one. Silently taking the first is how a socket ends up subscribed to the
+    // wrong tenant's room.
+    const requestedOrgId = decoded.organizationId || socket.handshake.auth?.organizationId;
+    let membership;
+    if (requestedOrgId) {
+      membership = activeMemberships.find((item: any) => item.organizationId === requestedOrgId);
+      if (!membership) return next(new Error("ORGANIZATION_ACCESS_DENIED"));
+    } else if (activeMemberships.length === 1) {
+      membership = activeMemberships[0];
+    } else if (activeMemberships.length === 0) {
+      return next(new Error("ORGANIZATION_ACCESS_DENIED"));
+    } else {
+      return next(new Error("ORGANIZATION_REQUIRED"));
+    }
 
     socket.data = {
       userId,
@@ -104,9 +135,17 @@ io.on("connection", (socket: Socket) => {
 
   // 5. Typing Indicators
   socket.on("typing", (data: { conversationId: string; isTyping: boolean }) => {
-    socket.to(`conv:${data.conversationId}`).emit("typing", { 
-      userId, 
-      isTyping: data.isTyping 
+    // Gated on actually being in the room. `socket.to(room).emit(...)` does not
+    // require membership, so any authenticated socket could broadcast "someone
+    // is typing" into ANY conversation room, in any organization, just by
+    // naming the id — a cheap probe for which ids exist, and a way to put false
+    // activity in front of another tenant's agents.
+    const convRoom = `conv:${data?.conversationId}`;
+    if (!data?.conversationId || !socket.rooms.has(convRoom)) return;
+
+    socket.to(convRoom).emit("typing", {
+      userId,
+      isTyping: !!data.isTyping,
     });
   });
 

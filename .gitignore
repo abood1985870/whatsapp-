@@ -45,3 +45,9 @@ data/
 
 # Platform state
 .vercel/
+
+# Database dumps. One was committed to this repository; a dump is a complete
+# copy of every customer's messages and contacts, and git keeps it forever.
+scripts/*.sql
+*.dump
+backup_*.sql

@@ -8,34 +8,66 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
-  size?: "default" | "sm" | "lg" | "icon";
+  /**
+   * primary   — the one action this screen exists for. One per view.
+   * secondary — a real action, but not the point of the screen.
+   * ghost     — navigation and toggles.
+   * danger    — destroys something. Never the default.
+   */
+  variant?: ButtonVariant;
+  size?: "sm" | "md" | "lg" | "icon";
+  loading?: boolean;
 }
 
+/**
+ * `outline` and `destructive` are the old shadcn names, kept so the pages that
+ * have not been migrated yet keep compiling. They resolve to secondary/danger.
+ * @deprecated use secondary / danger
+ */
+type LegacyVariant = "outline" | "destructive" | "default";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "link" | LegacyVariant;
+
+const ALIAS: Record<string, ButtonVariant> = {
+  outline: "secondary",
+  destructive: "danger",
+  default: "primary",
+};
+
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "default", size = "default", ...props }, ref) => {
-    return (
-      <button
-        ref={ref}
-        className={cn(
-          "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gray-950 disabled:pointer-events-none disabled:opacity-50",
-          {
-            "bg-gray-900 text-gray-50 shadow hover:bg-gray-900/90": variant === "default",
-            "bg-red-500 text-gray-50 shadow-sm hover:bg-red-500/90": variant === "destructive",
-            "border border-gray-200 bg-white shadow-sm hover:bg-gray-100 hover:text-gray-900": variant === "outline",
-            "bg-gray-100 text-gray-900 shadow-sm hover:bg-gray-100/80": variant === "secondary",
-            "hover:bg-gray-100 hover:text-gray-900": variant === "ghost",
-            "text-gray-900 underline-offset-4 hover:underline": variant === "link",
-            "h-9 px-4 py-2": size === "default",
-            "h-8 rounded-md px-3 text-xs": size === "sm",
-            "h-10 rounded-md px-8": size === "lg",
-            "h-9 w-9": size === "icon",
-          },
-          className
-        )}
-        {...props}
-      />
-    );
+  ({ className, variant: rawVariant = "primary", size = "md", loading, disabled, children, ...props }, ref) => {
+  const variant = ALIAS[rawVariant] ?? rawVariant;
+  return (
+    <button
+      ref={ref}
+      disabled={disabled || loading}
+      className={cn(
+        "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded font-medium",
+        "transition-[background-color,border-color,color,opacity] duration-150",
+        "disabled:pointer-events-none disabled:opacity-45",
+        {
+          "bg-brand text-brand-fg hover:bg-qano-700 dark:hover:bg-qano-300": variant === "primary",
+          "bg-surface text-content border border-line-strong hover:bg-surface-2": variant === "secondary",
+          "text-muted hover:bg-surface-2 hover:text-content": variant === "ghost",
+          "bg-danger-500 text-white hover:bg-danger-600": variant === "danger",
+          "text-brand underline-offset-4 hover:underline p-0 h-auto": variant === "link",
+          "h-8 px-3 text-label": size === "sm",
+          "h-10 px-4 text-[14px]": size === "md",
+          "h-12 px-6 text-base": size === "lg",
+          "h-9 w-9 p-0": size === "icon",
+        },
+        className
+      )}
+      {...props}
+    >
+      {loading && (
+        <span
+          aria-hidden
+          className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin"
+        />
+      )}
+      {children}
+    </button>
+  );
   }
 );
 Button.displayName = "Button";
