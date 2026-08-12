@@ -80,10 +80,9 @@ export class LeadsController {
   @UseInterceptors(FileInterceptor("file", { limits: { fileSize: 5 * 1024 * 1024 } }))
   async importPreview(
     @UploadedFile() file: any,
-    @Body("organizationId") organizationId: string
+    @CurrentOrganization() organizationId: string
   ) {
     if (!file) throw new BadRequestException("FILE_REQUIRED");
-    if (!organizationId) throw new BadRequestException("ORGANIZATION_REQUIRED");
     const rows = await this.leadImport.parseFile(file.originalname, file.mimetype, file.buffer);
     const preview = await this.leadImport.preview(organizationId, rows);
     return { filename: file.originalname, ...preview };
